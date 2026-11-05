@@ -2,6 +2,7 @@
 // Los datos viven solo en memoria de la página: nunca en la URL ni en el almacenamiento del navegador.
 import { api, el, formatearFecha, hoyManagua, mostrarAviso, sumarDias } from './api.js';
 import { validarCampo } from './validacion.js';
+import { pintarTurnos } from './selector-turnos.js';
 
 const VENTANA_DIAS = 14;
 const MAX_DIAS_ADELANTE = 90;
@@ -125,61 +126,16 @@ function limiteHasta() {
   return sumarDias(estado.hoy, MAX_DIAS_ADELANTE);
 }
 
-function claseTurno(t) {
-  if (!t.disponible) return 'min-h-11 rounded-lg border border-transparent bg-tinta/10 px-2 text-sm text-tinta-2 line-through cursor-not-allowed';
-  if (estado.turno?.id === t.id) return 'min-h-11 rounded-lg border-2 border-sol bg-sol px-2 text-sm font-bold text-tinta';
-  return 'min-h-11 rounded-lg border border-baya bg-white px-2 text-sm font-bold text-baya hover:bg-baya/10';
-}
-
-function pintarTurnos(turnos) {
-  const lista = $('lista-turnos');
-  if (turnos.length === 0) {
-    lista.replaceChildren(el('p', { class: 'rounded-lg bg-white p-4 text-tinta-2 shadow-sm' }, 'No hay turnos en estas fechas. Prueba con las siguientes.'));
-    return;
-  }
-  const porDia = new Map();
-  for (const t of turnos) {
-    if (!porDia.has(t.fecha)) porDia.set(t.fecha, []);
-    porDia.get(t.fecha).push(t);
-  }
-  lista.replaceChildren(
-    ...[...porDia].map(([fecha, delDia]) => {
-      const libres = delDia.filter((t) => t.disponible).length;
-      return el(
-        'div',
-        { class: 'rounded-lg bg-white p-4 shadow-sm' },
-        el(
-          'h3',
-          { class: 'font-bold' },
-          formatearFecha(fecha, 'dia'),
-          el('span', { class: 'ml-2 text-sm font-normal text-tinta-2' }, libres === 0 ? 'sin turnos libres' : `${libres} libre${libres === 1 ? '' : 's'}`),
-        ),
-        el(
-          'div',
-          { class: 'mt-3 grid grid-cols-3 gap-2 sm:grid-cols-4 md:grid-cols-6' },
-          delDia.map((t) =>
-            el(
-              'button',
-              {
-                type: 'button',
-                class: claseTurno(t),
-                disabled: !t.disponible,
-                'aria-pressed': t.disponible ? String(estado.turno?.id === t.id) : false,
-                'aria-label': `${formatearFecha(fecha, 'dia')}, ${t.horaInicio}${t.disponible ? '' : ', ocupado'}`,
-                onclick: () => {
-                  estado.turno = t;
-                  errorCampo('turno', null);
-                  pintarTurnos(turnos);
-                  $('continuar-2').focus();
-                },
-              },
-              t.horaInicio,
-            ),
-          ),
-        ),
-      );
-    }),
-  );
+function pintar(turnos) {
+  pintarTurnos($('lista-turnos'), turnos, {
+    seleccionadoId: estado.turno?.id ?? null,
+    alElegir: (t) => {
+      estado.turno = t;
+      errorCampo('turno', null);
+      pintar(turnos);
+      $('continuar-2').focus();
+    },
+  });
 }
 
 async function cargarTurnos() {
@@ -195,7 +151,7 @@ async function cargarTurnos() {
     const turnos = await api(`/turnos?${params}`);
     // Si el turno elegido ya no está libre, se descarta.
     if (estado.turno && turnos.some((t) => t.id === estado.turno.id && !t.disponible)) estado.turno = null;
-    pintarTurnos(turnos);
+    pintar(turnos);
   } catch (err) {
     lista.replaceChildren(el('p', { class: 'text-error' }, err.message));
   } finally {

@@ -32,4 +32,15 @@ const crearCitaSchema = z.strictObject({
     .default([]),
 });
 
-module.exports = { crearCitaSchema, VERSION_CONSENTIMIENTO };
+// CU-08: cédula (ER-01) y código (ER-05), normalizados a mayúsculas.
+const accesoCitaSchema = z.strictObject({
+  cedula: esquemas.cedula,
+  codigo: esquemas.codigoCita,
+});
+
+// CU-07: solo el turno nuevo; el servicio y el código no cambian.
+const reprogramarCitaSchema = z.strictObject({
+  turnoId: esquemas.id,
+});
+
+module.exports = { crearCitaSchema, accesoCitaSchema, reprogramarCitaSchema, VERSION_CONSENTIMIENTO };

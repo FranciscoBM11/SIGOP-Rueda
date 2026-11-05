@@ -1,4 +1,4 @@
-// Validación en el navegador con las mismas expresiones ER-01 a ER-04 del
+// Validación en el navegador con las mismas expresiones ER-01 a ER-05 del
 // servidor (src/common/validadores.js). Solo da retroalimentación inmediata:
 // el servidor vuelve a validar siempre.
 
@@ -28,9 +28,15 @@ export const reglas = {
     mensaje: 'Escribe un correo válido, por ejemplo nombre@gmail.com.',
     maximo: 100,
   },
+  codigo: {
+    normalizar: (v) => v.trim().toUpperCase(),
+    er: /^CR-\d{5}$/, // ER-05
+    vacio: 'Ingresa el código de tu cita.',
+    mensaje: 'El código tiene el formato CR-12345.',
+  },
 };
 
-/** Devuelve { valor, error } para un campo de la paciente. */
+/** Devuelve { valor, error } para un campo de la paciente o el código de cita. */
 export function validarCampo(nombre, bruto) {
   const regla = reglas[nombre];
   const valor = regla.normalizar(bruto);

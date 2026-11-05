@@ -26,6 +26,10 @@ const { CanalCorreoSimulado } = require('./notificaciones/canal-correo-simulado'
 const { crearCitasRepository } = require('./citas/citas.repository');
 const { crearCambiosEstadoRepository } = require('./citas/cambios-estado.repository');
 const { crearCitasService } = require('./citas/citas.service');
+const { crearIntentosRepository } = require('./seguridad/intentos.repository');
+const { crearAccesoPublicoService } = require('./seguridad/acceso-publico.service');
+const { crearTokenCita } = require('./seguridad/token-cita');
+const { crearHashIp } = require('./seguridad/hash-ip');
 
 function crearCanalCorreo() {
   const { smtp } = obtenerConfig();
@@ -34,6 +38,7 @@ function crearCanalCorreo() {
 
 function crearDependencias() {
   const bd = { obtenerPool };
+  const { secretoSesion } = obtenerConfig();
 
   const serviciosService = crearServiciosService({ serviciosRepo: crearServiciosRepository(bd) });
   const preguntasService = crearPreguntasService({ preguntasRepo: crearPreguntasRepository(bd), serviciosService });
@@ -45,9 +50,10 @@ function crearDependencias() {
     notificacionesRepo: crearNotificacionesRepository(bd),
     canal: crearCanalCorreo(),
   });
+  const citasRepo = crearCitasRepository(bd);
   const citasService = crearCitasService({
     transaccion,
-    citasRepo: crearCitasRepository(),
+    citasRepo,
     cambiosEstadoRepo: crearCambiosEstadoRepository(),
     serviciosService,
     turnosService,
@@ -56,7 +62,23 @@ function crearDependencias() {
     notificacionesService,
   });
 
-  return { serviciosService, preguntasService, calculadoraService, turnosService, citasService };
+  const tokenCita = crearTokenCita({ secreto: secretoSesion });
+  const accesoPublicoService = crearAccesoPublicoService({
+    intentosRepo: crearIntentosRepository(bd),
+    citasRepo,
+    tokenCita,
+    hashIp: crearHashIp(secretoSesion),
+  });
+
+  return {
+    serviciosService,
+    preguntasService,
+    calculadoraService,
+    turnosService,
+    citasService,
+    accesoPublicoService,
+    tokenCita,
+  };
 }
 
 module.exports = { crearDependencias };

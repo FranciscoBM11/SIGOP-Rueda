@@ -96,3 +96,42 @@ describe('CanalCorreo', () => {
     });
   });
 });
+
+describe('plantillaReprogramacion (CU-07 paso 8)', () => {
+  const { plantillaReprogramacion } = require('../src/modules/notificaciones/plantillas/reprogramacion');
+  const datos = {
+    nombres: 'Ana <b>Ruiz</b>',
+    codigo: 'CR-04821',
+    servicio: 'Control Prenatal',
+    fecha: '2026-11-12',
+    horaInicio: '08:00',
+    horaFin: '08:40',
+    indicaciones: '',
+    anterior: { fecha: '2026-11-10', horaInicio: '09:30' },
+  };
+
+  test('incluye el mismo código, el nuevo horario y el anterior', () => {
+    const m = plantillaReprogramacion(datos);
+    expect(m.asunto).toBe('Cita reprogramada CR-04821 – Clínica Rueda');
+    expect(m.texto).toContain('Código de cita: CR-04821');
+    expect(m.texto).toContain('jueves, 12 de noviembre de 2026');
+    expect(m.texto).toContain('08:00 a 08:40');
+    expect(m.texto).toContain('martes, 10 de noviembre de 2026, 09:30');
+    expect(m.texto).toContain('No requiere preparación especial.');
+  });
+
+  test('escapa los valores en el HTML', () => {
+    const m = plantillaReprogramacion(datos);
+    expect(m.html).toContain('Ana &lt;b&gt;Ruiz&lt;/b&gt;');
+    expect(m.html).not.toContain('<b>Ruiz</b>');
+  });
+
+  test('NotificacionesService conoce el tipo REPROGRAMACION', async () => {
+    const canal = { canal: 'CORREO', enviar: jest.fn().mockResolvedValue(undefined) };
+    const repo = { marcarEnviada: jest.fn(), marcarFallida: jest.fn() };
+    const s = crearNotificacionesService({ notificacionesRepo: repo, canal });
+    await expect(s.enviar(3, 'REPROGRAMACION', 'ana@ejemplo.com', datos)).resolves.toBe(true);
+    expect(canal.enviar).toHaveBeenCalledWith(expect.objectContaining({ asunto: 'Cita reprogramada CR-04821 – Clínica Rueda' }));
+    expect(repo.marcarEnviada).toHaveBeenCalledWith(3);
+  });
+});

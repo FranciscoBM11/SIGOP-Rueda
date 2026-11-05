@@ -4,8 +4,9 @@
 // registra el resultado. Un fallo de envío nunca anula la cita (CU-03, E4).
 const registro = require('../../common/registro');
 const { plantillaConfirmacion } = require('./plantillas/confirmacion');
+const { plantillaReprogramacion } = require('./plantillas/reprogramacion');
 
-const PLANTILLAS = { CONFIRMACION: plantillaConfirmacion };
+const PLANTILLAS = { CONFIRMACION: plantillaConfirmacion, REPROGRAMACION: plantillaReprogramacion };
 
 /**
  * Detalle técnico del fallo sin datos personales: los mensajes de SMTP pueden

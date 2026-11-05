@@ -71,4 +71,4 @@ function plantillaConfirmacion(d) {
   return { asunto: `Cita confirmada ${d.codigo} – Clínica Rueda`, texto, html };
 }
 
-module.exports = { plantillaConfirmacion, fechaLarga };
+module.exports = { plantillaConfirmacion, fechaLarga, escapar };

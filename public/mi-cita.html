@@ -1,0 +1,149 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="Cancela o cambia de día u hora tu cita en la Clínica Rueda con tu cédula y tu código de cita.">
+  <title>Mi cita — Clínica Rueda</title>
+  <link rel="stylesheet" href="/css/app.css">
+  <script type="module" src="/js/mi-cita.js"></script>
+</head>
+<body class="min-h-screen flex flex-col">
+  <a href="#contenido" class="sr-only focus:not-sr-only focus:absolute focus:left-4 focus:top-4 focus:z-10 focus:rounded focus:bg-white focus:px-4 focus:py-2">Saltar al contenido</a>
+  <header class="bg-baya text-white">
+    <div class="mx-auto flex max-w-5xl flex-wrap items-center justify-between gap-2 px-4 py-4">
+      <a href="/" class="block">
+        <span class="block font-titulo text-xl font-bold">Clínica Rueda</span>
+        <span class="block text-sm text-white/90">Ginecología y obstetricia</span>
+      </a>
+      <a href="/agendar.html" class="inline-flex min-h-11 items-center rounded-lg bg-white px-4 font-bold text-baya hover:bg-bruma">Agendar cita</a>
+    </div>
+  </header>
+
+  <main id="contenido" class="flex-1 mx-auto w-full max-w-5xl px-4 py-8">
+   <div id="vista-principal">
+    <h1 class="font-titulo text-2xl sm:text-3xl font-bold">Mi cita</h1>
+    <p class="mt-1 text-tinta-2">Cancela tu cita o cámbiala de día u hora. No necesitas contraseña.</p>
+
+    <div class="mt-6 grid items-start gap-6 md:grid-cols-[minmax(0,2fr)_minmax(0,3fr)]">
+      <!-- CU-08: acceso con cédula y código -->
+      <section class="rounded-lg bg-white p-5 shadow-sm" aria-labelledby="titulo-acceso">
+        <h2 id="titulo-acceso" class="sr-only">Buscar mi cita</h2>
+        <form id="form-acceso" class="grid gap-4" novalidate>
+          <div>
+            <label for="cedula" class="block font-bold">Cédula</label>
+            <input id="cedula" name="cedula" autocomplete="off" maxlength="16" placeholder="001-150390-0012K"
+                   aria-describedby="cedula-error" class="mt-1 block min-h-11 w-full rounded-lg border border-tinta/30 bg-white px-3 uppercase">
+            <p id="cedula-error" class="mt-1 text-sm text-error" hidden></p>
+          </div>
+          <div>
+            <label for="codigo" class="block font-bold">Código de cita</label>
+            <p id="codigo-ayuda" class="text-sm text-tinta-2">Lo recibiste por correo, por ejemplo CR-04821.</p>
+            <input id="codigo" name="codigo" autocomplete="off" maxlength="8" placeholder="CR-04821"
+                   aria-describedby="codigo-ayuda codigo-error" class="mt-1 block min-h-11 w-full rounded-lg border border-tinta/30 bg-white px-3 uppercase">
+            <p id="codigo-error" class="mt-1 text-sm text-error" hidden></p>
+          </div>
+          <button type="submit" id="buscar" class="min-h-11 rounded-lg bg-baya px-5 font-bold text-white hover:bg-baya/90 disabled:opacity-60">Buscar mi cita</button>
+        </form>
+        <p id="aviso-acceso" role="alert" class="mt-4 rounded-lg border border-error bg-white p-3 text-error" hidden></p>
+        <p class="mt-4 text-sm text-tinta-2">Por tu seguridad, después de 5 intentos fallidos el acceso se bloquea 15 minutos.</p>
+        <a href="/" class="mt-2 inline-flex min-h-11 items-center font-bold text-baya underline">← Volver al inicio</a>
+      </section>
+
+      <!-- Tarjeta de la cita (CU-06 paso 3, CU-07 paso 3) -->
+      <section id="panel-cita" class="rounded-lg bg-white p-5 shadow-sm" aria-labelledby="cita-servicio" hidden>
+        <div class="flex flex-wrap items-center gap-3">
+          <h2 id="cita-servicio" class="font-titulo text-xl font-bold" tabindex="-1"></h2>
+          <span id="cita-estado" class="rounded-full px-3 py-1 text-sm font-bold"></span>
+        </div>
+        <dl class="mt-4 grid grid-cols-[auto_1fr] gap-x-4 gap-y-2">
+          <dt class="text-tinta-2">Paciente</dt><dd id="cita-paciente" class="font-bold break-words"></dd>
+          <dt class="text-tinta-2">Día</dt><dd id="cita-dia" class="font-bold"></dd>
+          <dt class="text-tinta-2">Hora</dt><dd id="cita-hora" class="font-bold"></dd>
+          <dt class="text-tinta-2">Código</dt><dd id="cita-codigo" class="font-bold"></dd>
+        </dl>
+
+        <p id="aviso-cita" role="alert" class="mt-4 rounded-lg border border-error bg-white p-3 text-error" hidden></p>
+
+        <!-- Acciones -->
+        <div id="acciones" class="mt-5">
+          <div class="flex flex-wrap gap-3">
+            <button type="button" id="abrir-reprogramar" class="min-h-11 rounded-lg bg-baya px-5 font-bold text-white hover:bg-baya/90">Cambiar día u hora</button>
+            <button type="button" id="abrir-cancelar" class="min-h-11 rounded-lg border border-error bg-white px-5 font-bold text-error hover:bg-error/5">Cancelar cita</button>
+          </div>
+          <p class="mt-3 text-sm text-tinta-2">Si cambias la hora, conservas el mismo código y te enviamos el nuevo horario por correo.</p>
+        </div>
+
+        <!-- CU-06 pasos 3-4: confirmar la cancelación -->
+        <div id="confirmar-cancelacion" class="mt-5 rounded-lg border border-error/40 bg-error/5 p-4" hidden>
+          <p id="titulo-cancelar" class="font-bold" tabindex="-1">¿Seguro que quieres cancelar esta cita?</p>
+          <p class="mt-1 text-sm">El horario quedará libre para otra paciente. Esta acción no se puede deshacer.</p>
+          <div class="mt-4 flex flex-wrap gap-3">
+            <button type="button" id="si-cancelar" class="min-h-11 rounded-lg bg-error px-5 font-bold text-white hover:bg-error/90 disabled:opacity-60">Sí, cancelar mi cita</button>
+            <button type="button" id="no-cancelar" class="min-h-11 rounded-lg border border-tinta/30 bg-white px-5 font-bold">No, conservarla</button>
+          </div>
+          <button type="button" id="cancelar-a-reprogramar" class="mt-3 min-h-11 text-sm font-bold text-baya underline">Prefiero cambiar el día u hora</button>
+        </div>
+
+        <!-- CU-07 pasos 4-6: elegir el nuevo turno -->
+        <div id="reprogramar" class="mt-5" hidden>
+          <p id="titulo-reprogramar" class="font-bold" tabindex="-1">Elige el nuevo día y hora</p>
+          <p class="mt-1 text-sm text-tinta-2">Si no encuentras un horario, comunícate con la clínica.</p>
+          <div class="mt-3 flex items-center justify-between gap-2">
+            <button type="button" id="semana-anterior" class="min-h-11 rounded-lg border border-tinta/30 bg-white px-3 disabled:opacity-40">← Anteriores</button>
+            <p id="rango-texto" class="text-center text-sm font-bold" aria-live="polite"></p>
+            <button type="button" id="semana-siguiente" class="min-h-11 rounded-lg border border-tinta/30 bg-white px-3 disabled:opacity-40">Siguientes →</button>
+          </div>
+          <p class="mt-3 flex flex-wrap gap-4 text-sm text-tinta-2">
+            <span class="inline-flex items-center gap-1"><span class="inline-block h-3 w-3 rounded-sm border border-baya bg-white"></span> Libre</span>
+            <span class="inline-flex items-center gap-1"><span class="inline-block h-3 w-3 rounded-sm bg-tinta/10"></span> <span class="line-through">Ocupado</span></span>
+            <span class="inline-flex items-center gap-1"><span class="inline-block h-3 w-3 rounded-sm border-2 border-dashed border-baya bg-bruma"></span> Tu horario actual</span>
+            <span class="inline-flex items-center gap-1"><span class="inline-block h-3 w-3 rounded-sm bg-sol"></span> Nuevo horario</span>
+          </p>
+          <div id="lista-turnos" class="mt-4 grid gap-4" aria-live="polite"></div>
+          <p id="turno-error" class="mt-2 text-sm text-error" hidden></p>
+          <div class="mt-5 flex flex-wrap justify-between gap-3">
+            <button type="button" id="volver-reprogramar" class="min-h-11 rounded-lg border border-tinta/30 bg-white px-5 font-bold">Volver</button>
+            <button type="button" id="confirmar-reprogramar" class="min-h-11 rounded-lg bg-salvia px-5 font-bold text-white hover:bg-salvia/90 disabled:opacity-60">Confirmar nuevo horario</button>
+          </div>
+          <button type="button" id="reprogramar-a-cancelar" class="mt-3 min-h-11 text-sm font-bold text-error underline">Prefiero cancelar la cita</button>
+        </div>
+
+        <div class="mt-5 border-t border-tinta/10 pt-3">
+          <a href="/" class="inline-flex min-h-11 items-center font-bold text-baya underline">← Volver al inicio</a>
+        </div>
+      </section>
+    </div>
+   </div>
+
+    <!-- Confirmación tras reprogramar (CU-07 paso 9) o cancelar (CU-06 paso 7) -->
+    <section id="confirmacion" class="mx-auto max-w-2xl" aria-labelledby="conf-titulo" hidden>
+      <div class="rounded-lg bg-white p-5 shadow-sm sm:p-6">
+        <p id="conf-etiqueta" class="inline-flex items-center gap-2 rounded-full px-3 py-1 text-sm font-bold"></p>
+        <h1 id="conf-titulo" class="mt-4 font-titulo text-2xl font-bold sm:text-3xl" tabindex="-1"></h1>
+        <p id="conf-texto" class="mt-2 text-tinta-2"></p>
+
+        <dl id="conf-detalle" class="mt-5 grid grid-cols-[auto_1fr] gap-x-4 gap-y-2">
+          <dt class="text-tinta-2">Servicio</dt><dd id="conf-servicio" class="font-bold break-words"></dd>
+          <dt class="text-tinta-2">Día</dt><dd id="conf-dia" class="font-bold"></dd>
+          <dt class="text-tinta-2">Hora</dt><dd id="conf-hora" class="font-bold"></dd>
+          <dt class="text-tinta-2">Código</dt><dd id="conf-codigo" class="font-bold"></dd>
+        </dl>
+
+        <p id="conf-correo-ok" class="mt-5 text-salvia" hidden>Te enviamos el nuevo horario por correo.</p>
+        <p id="conf-correo-fallo" class="mt-5 rounded-lg border border-error p-3 text-error" role="status" hidden>No pudimos enviar el correo, pero el cambio sí quedó guardado. Anota tu nuevo horario.</p>
+      </div>
+
+      <div class="mt-6 flex flex-col gap-3 sm:flex-row">
+        <a href="/" class="inline-flex min-h-11 items-center justify-center rounded-lg border border-tinta/30 bg-white px-5 font-bold">Volver al inicio</a>
+        <button type="button" id="conf-ver-cita" class="min-h-11 rounded-lg bg-baya px-5 font-bold text-white hover:bg-baya/90" hidden>Ver mi cita</button>
+        <a id="conf-agendar" href="/agendar.html" class="inline-flex min-h-11 items-center justify-center rounded-lg bg-baya px-5 font-bold text-white hover:bg-baya/90" hidden>Agendar una nueva cita</a>
+      </div>
+    </section>
+  </main>
+
+  <footer class="border-t border-tinta/10">
+    <p class="mx-auto max-w-5xl px-4 py-4 text-sm text-tinta-2">Tus datos se protegen conforme a la Ley N.º 787 de Protección de Datos Personales. <a href="/privacidad.html" class="underline">Política de privacidad</a>.</p>
+  </footer>
+</body>
+</html>

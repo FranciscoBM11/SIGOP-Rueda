@@ -14,13 +14,17 @@ export class ErrorApi extends Error {
 /**
  * Llama a la API. Devuelve el JSON de la respuesta o lanza ErrorApi con el
  * formato estándar { codigo, mensaje, detalles }.
+ * `token`: token de cita (CU-08); se envía como 'Authorization: Bearer'.
  */
-export async function api(ruta, { metodo = 'GET', cuerpo } = {}) {
+export async function api(ruta, { metodo = 'GET', cuerpo, token } = {}) {
+  const headers = {};
+  if (cuerpo !== undefined) headers['Content-Type'] = 'application/json';
+  if (token) headers.Authorization = `Bearer ${token}`;
   let res;
   try {
     res = await fetch(`/api/v1${ruta}`, {
       method: metodo,
-      headers: cuerpo === undefined ? {} : { 'Content-Type': 'application/json' },
+      headers,
       body: cuerpo === undefined ? undefined : JSON.stringify(cuerpo),
     });
   } catch {
