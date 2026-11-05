@@ -48,6 +48,7 @@ npm run dev                 # servidor con recarga automática en http://localho
 | `npm start` | Inicia el servidor (producción / Render). |
 | `npm run dev` | Inicia el servidor y lo reinicia al guardar cambios. |
 | `npm test` | Ejecuta las pruebas (Jest + Supertest). No necesita base de datos. |
+| `npm run test:bd` | Pruebas de integración contra la base SIGOP local (usa el `.env`). Crean y borran pacientes ficticias con cédulas `999-010100-000xZ`. No corren en la CI. |
 | `npm run css` | Compila Tailwind: `public/css/tailwind.css` → `public/css/app.css`. |
 | `npm run css:watch` | Igual, recompilando al guardar. |
 | `npm run db:verificar` | Conecta a SQL Server y cuenta las filas de los datos de demostración. |
@@ -55,6 +56,8 @@ npm run dev                 # servidor con recarga automática en http://localho
 `public/css/app.css` es un archivo generado pero **se sube al repositorio**, para que Render solo tenga que ejecutar `npm install` y `npm start`. Después de cambiar clases en el HTML ejecuta `npm run css`.
 
 Comprobación rápida: abre http://localhost:3000/api/v1/salud → `{"estado":"ok"}`.
+
+Agendar de punta a punta: abre http://localhost:3000/agendar.html. Sin SMTP configurado el correo no se envía (canal simulado) y el comprobante se muestra en pantalla igualmente. El usuario `sigop_app` necesita `GRANT EXECUTE` (paso 4) para que la consulta de turnos genere los días que falten.
 
 ## Usuarios de demostración
 

@@ -8,10 +8,21 @@ const { cabecerasSeguras } = require('./common/middlewares/cabeceras-seguras');
 const { idPeticion } = require('./common/middlewares/id-peticion');
 const { rutaNoEncontrada, manejadorErrores } = require('./common/errores');
 const saludRoutes = require('./common/salud.routes');
+const { crearDependencias } = require('./modules/dependencias');
+const { crearCalculadoraRoutes } = require('./modules/calculadora/calculadora.routes');
+const { crearServiciosRoutes } = require('./modules/catalogo/servicios.routes');
+const { crearTurnosRoutes } = require('./modules/disponibilidad/turnos.routes');
+const { crearCitasRoutes } = require('./modules/citas/citas.routes');
 
 const CARPETA_PUBLICA = path.resolve(__dirname, '..', 'public');
 
-function crearApp() {
+/**
+ * @param {object} [opciones]
+ * @param {object} [opciones.servicios] servicios ya construidos (en pruebas, simulados).
+ *        Si se omite se crean los reales con crearDependencias().
+ */
+function crearApp({ servicios } = {}) {
+  const dependencias = servicios ?? crearDependencias();
   const app = express();
 
   // Render pone un proxy delante: confiar en un salto para obtener la IP real.
@@ -24,7 +35,10 @@ function crearApp() {
   // ---- API /api/v1 -----------------------------------------------------------
   const api = express.Router();
   api.use(saludRoutes);
-  // Los módulos (citas, triaje, ...) se montarán aquí en las siguientes iteraciones.
+  api.use(crearCalculadoraRoutes(dependencias));
+  api.use(crearServiciosRoutes(dependencias));
+  api.use(crearTurnosRoutes(dependencias));
+  api.use(crearCitasRoutes(dependencias));
   api.use(rutaNoEncontrada);
   app.use('/api/v1', api);
   app.use('/api', rutaNoEncontrada);

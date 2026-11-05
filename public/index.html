@@ -3,40 +3,65 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <meta name="description" content="Clínica Rueda: agenda tu cita de ginecología y obstetricia, completa tu pre-triaje y consulta tus resultados.">
+  <meta name="description" content="Clínica Rueda: agenda tu cita de ginecología y obstetricia, completa tu pre-triaje y calcula tu fecha probable de parto.">
   <title>Clínica Rueda — Citas y resultados</title>
   <link rel="stylesheet" href="/css/app.css">
+  <script type="module" src="/js/inicio.js"></script>
 </head>
 <body class="min-h-screen flex flex-col">
+  <a href="#contenido" class="sr-only focus:not-sr-only focus:absolute focus:left-4 focus:top-4 focus:z-10 focus:rounded focus:bg-white focus:px-4 focus:py-2">Saltar al contenido</a>
   <header class="bg-baya text-white">
-    <div class="mx-auto max-w-3xl px-4 py-4">
-      <p class="font-titulo text-xl font-bold">Clínica Rueda</p>
-      <p class="text-sm text-white/90">Ginecología y obstetricia</p>
+    <div class="mx-auto flex max-w-3xl items-center justify-between gap-4 px-4 py-4">
+      <a href="/" class="block">
+        <span class="block font-titulo text-xl font-bold">Clínica Rueda</span>
+        <span class="block text-sm text-white/90">Ginecología y obstetricia</span>
+      </a>
+      <a href="/agendar.html" class="inline-flex min-h-11 items-center rounded-lg bg-white px-4 font-bold text-baya hover:bg-bruma">Agendar cita</a>
     </div>
   </header>
 
-  <main class="flex-1 mx-auto w-full max-w-3xl px-4 py-8">
-    <h1 class="font-titulo text-2xl sm:text-3xl font-bold">Bienvenida</h1>
-    <p class="mt-2 text-tinta-2">Desde aquí podrás agendar tu cita, gestionarla y consultar tus resultados. Estas opciones estarán disponibles pronto.</p>
+  <main id="contenido" class="flex-1 mx-auto w-full max-w-3xl px-4 py-8">
+    <h1 class="font-titulo text-2xl sm:text-3xl font-bold">Agenda tu cita sin llamar</h1>
+    <p class="mt-2 text-tinta-2">Elige el servicio, el día y la hora; completa un breve pre-triaje y recibe tu código de cita por correo.</p>
+    <p class="mt-4">
+      <a href="/agendar.html" class="inline-flex min-h-11 items-center rounded-lg bg-baya px-5 font-bold text-white hover:bg-baya/90">Agendar cita</a>
+    </p>
 
-    <ul class="mt-6 grid gap-3 sm:grid-cols-3">
-      <li class="rounded-lg bg-white p-4 shadow-sm">
-        <p class="font-bold">Agendar cita</p>
-        <p class="text-sm text-tinta-2">Elige servicio, fecha y hora.</p>
-      </li>
-      <li class="rounded-lg bg-white p-4 shadow-sm">
-        <p class="font-bold">Mi cita</p>
-        <p class="text-sm text-tinta-2">Cancela o reprograma con tu cédula y código.</p>
-      </li>
-      <li class="rounded-lg bg-white p-4 shadow-sm">
-        <p class="font-bold">Resultados</p>
-        <p class="text-sm text-tinta-2">Descarga tus informes en PDF.</p>
-      </li>
-    </ul>
+    <section class="mt-10" aria-labelledby="titulo-fpp">
+      <h2 id="titulo-fpp" class="font-titulo text-xl sm:text-2xl font-bold">Calcula tu fecha probable de parto</h2>
+      <p class="mt-1 text-tinta-2">Con la fecha del primer día de tu última menstruación (FUM). No necesitas registrarte.</p>
+
+      <form id="form-fpp" class="mt-4 flex flex-col gap-3 sm:flex-row sm:items-start" novalidate>
+        <div class="flex-1">
+          <label for="fum" class="block font-bold">Fecha de última menstruación</label>
+          <input id="fum" name="fum" type="date" required aria-describedby="fum-error"
+                 class="mt-1 block min-h-11 w-full rounded-lg border border-tinta/30 bg-white px-3">
+          <p id="fum-error" class="mt-1 text-sm text-error" hidden></p>
+        </div>
+        <button type="submit" class="min-h-11 rounded-lg bg-baya px-5 font-bold text-white hover:bg-baya/90 disabled:opacity-60 sm:mt-7">Calcular</button>
+      </form>
+
+      <p id="fpp-aviso" role="alert" class="mt-4 rounded-lg border border-error bg-white p-3 text-error" hidden></p>
+      <div id="fpp-resultado" class="mt-6" aria-live="polite" hidden></div>
+    </section>
+
+    <section class="mt-10" aria-labelledby="titulo-servicios">
+      <h2 id="titulo-servicios" class="sr-only">Opciones</h2>
+      <ul class="grid gap-3 sm:grid-cols-2">
+        <li class="rounded-lg bg-white p-4 shadow-sm">
+          <p class="font-bold">Mi cita</p>
+          <p class="text-sm text-tinta-2">Cancela o reprograma con tu cédula y código. Disponible pronto.</p>
+        </li>
+        <li class="rounded-lg bg-white p-4 shadow-sm">
+          <p class="font-bold">Resultados</p>
+          <p class="text-sm text-tinta-2">Descarga tus informes en PDF. Disponible pronto.</p>
+        </li>
+      </ul>
+    </section>
   </main>
 
   <footer class="border-t border-tinta/10">
-    <p class="mx-auto max-w-3xl px-4 py-4 text-sm text-tinta-2">Tus datos se protegen conforme a la Ley N.º 787 de Protección de Datos Personales.</p>
+    <p class="mx-auto max-w-3xl px-4 py-4 text-sm text-tinta-2">Tus datos se protegen conforme a la Ley N.º 787 de Protección de Datos Personales. <a href="/privacidad.html" class="underline">Política de privacidad</a>.</p>
   </footer>
 </body>
 </html>

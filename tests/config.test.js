@@ -59,9 +59,30 @@ describe('construirConfig', () => {
     expect(mensaje).not.toMatch(/zz-valor-secreto-zz|quizas/);
   });
 
-  test('SMTP es opcional en la Iteración 0', () => {
+  const smtpCompleto = {
+    SMTP_HOST: 'smtp.ejemplo.com',
+    SMTP_PUERTO: '465',
+    SMTP_SEGURO: 'true',
+    SMTP_USUARIO: 'usuario',
+    SMTP_CLAVE: 'clave-smtp',
+    CORREO_REMITENTE: 'Clínica Rueda <no-responder@ejemplo.com>',
+  };
+
+  test('fuera de producción SMTP es opcional (se usa el canal simulado)', () => {
     const c = construirConfig({ ...valido, SMTP_HOST: '', SMTP_PUERTO: '' });
+    expect(c.smtp.configurado).toBe(false);
     expect(c.smtp.host).toBeUndefined();
     expect(c.smtp.puerto).toBeUndefined();
+  });
+
+  test('en producción todas las variables SMTP son obligatorias', () => {
+    expect(() => construirConfig({ ...valido, NODE_ENV: 'production' })).toThrow(/SMTP_HOST: falta/);
+    const c = construirConfig({ ...valido, NODE_ENV: 'production', ...smtpCompleto });
+    expect(c.smtp).toMatchObject({ configurado: true, host: 'smtp.ejemplo.com', puerto: 465, seguro: true });
+  });
+
+  test('si se define SMTP_HOST, el resto de SMTP también es obligatorio', () => {
+    const { SMTP_CLAVE, ...incompleto } = smtpCompleto;
+    expect(() => construirConfig({ ...valido, ...incompleto })).toThrow(/SMTP_CLAVE: falta/);
   });
 });

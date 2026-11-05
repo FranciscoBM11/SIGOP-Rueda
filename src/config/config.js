@@ -32,13 +32,22 @@ const esquema = z.object({
     .regex(/^[0-9a-fA-F]{64}$/, 'debe tener 64 caracteres hexadecimales (32 bytes)'),
   SECRETO_SESION: z.string().min(32, 'debe tener al menos 32 caracteres'),
 
-  // Obligatorias a partir de la Iteración 1 (Nodemailer).
+  // Correo (Nodemailer). Obligatorias en producción. En desarrollo y pruebas,
+  // si SMTP_HOST está vacío se usa un canal simulado que no envía nada.
   SMTP_HOST: z.preprocess(vacioComoIndefinido, z.string().optional()),
-  SMTP_PUERTO: z.preprocess(vacioComoIndefinido, z.coerce.number().int().optional()),
+  SMTP_PUERTO: z.preprocess(vacioComoIndefinido, z.coerce.number().int().min(1).max(65535).optional()),
   SMTP_SEGURO: z.preprocess(vacioComoIndefinido, booleano.optional()),
   SMTP_USUARIO: z.preprocess(vacioComoIndefinido, z.string().optional()),
   SMTP_CLAVE: z.preprocess(vacioComoIndefinido, z.string().optional()),
   CORREO_REMITENTE: z.preprocess(vacioComoIndefinido, z.string().optional()),
+}).superRefine((e, ctx) => {
+  const smtp = ['SMTP_HOST', 'SMTP_PUERTO', 'SMTP_SEGURO', 'SMTP_USUARIO', 'SMTP_CLAVE', 'CORREO_REMITENTE'];
+  // En producción todas; fuera de producción, si se configura SMTP_HOST, el resto también.
+  const exigir = e.NODE_ENV === 'production' || e.SMTP_HOST !== undefined;
+  if (!exigir) return;
+  for (const nombre of smtp) {
+    if (e[nombre] === undefined) ctx.addIssue({ code: 'custom', path: [nombre], message: 'falta' });
+  }
 });
 
 class ErrorConfiguracion extends Error {
@@ -85,6 +94,7 @@ function construirConfig(entorno) {
     claveCifrado: Buffer.from(e.CLAVE_CIFRADO, 'hex'),
     secretoSesion: e.SECRETO_SESION,
     smtp: Object.freeze({
+      configurado: e.SMTP_HOST !== undefined,
       host: e.SMTP_HOST,
       puerto: e.SMTP_PUERTO,
       seguro: e.SMTP_SEGURO,

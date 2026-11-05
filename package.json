@@ -14,7 +14,8 @@
     "test": "jest",
     "css": "tailwindcss -i ./public/css/tailwind.css -o ./public/css/app.css --minify",
     "css:watch": "tailwindcss -i ./public/css/tailwind.css -o ./public/css/app.css --watch",
-    "db:verificar": "node src/config/verificar-bd.js"
+    "db:verificar": "node src/config/verificar-bd.js",
+    "test:bd": "jest --config jest.bd.config.js"
   },
   "jest": {
     "testEnvironment": "node",
@@ -24,12 +25,18 @@
     "testMatch": [
       "<rootDir>/tests/**/*.test.js",
       "<rootDir>/src/**/*.test.js"
+    ],
+    "testPathIgnorePatterns": [
+      "/node_modules/",
+      "<rootDir>/tests/integracion/"
     ]
   },
   "dependencies": {
     "express": "^5.3.0",
+    "express-rate-limit": "^8.7.3",
     "helmet": "^8.3.0",
     "mssql": "^12.7.14",
+    "nodemailer": "^10.3.1",
     "zod": "^4.6.7"
   },
   "devDependencies": {

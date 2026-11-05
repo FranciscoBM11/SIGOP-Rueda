@@ -422,7 +422,7 @@ Los demás módulos siguen la misma estructura. La tabla lista sus archivos y cl
 | validadores.js | Utilidad           | Expresiones regulares ER-01 a ER-10 y funciones de validación compartidas por todos los esquemas.                                                                                               |
 | errores.js     | Clase y middleware | Clase ErrorNegocio(codigo, mensaje, http) y manejador global que convierte cualquier excepción en la respuesta de error estándar; el detalle técnico va solo al registro, sin datos personales. |
 | middlewares/   | Middlewares        | sesion (verifica la cookie y renueva la inactividad), requiereRol (RN-11, RN-16), tokenCita, limitePeticiones (express-rate-limit) y la configuración de Helmet.                                |
-| config.js      | Configuración      | Carga y valida las variables de entorno al iniciar; la aplicación no arranca si falta una. Vive en src/config/ (sección 2.6); las variables de SMTP pasan a obligatorias en la Iteración 1.     |
+| config.js      | Configuración      | Carga y valida las variables de entorno al iniciar; la aplicación no arranca si falta una. Vive en src/config/ (sección 2.6); las variables de SMTP son obligatorias en producción; en desarrollo y pruebas, si SMTP_HOST está vacío, se usa un canal de correo simulado que no envía nada (decisión de la Iteración 1).     |
 | registro.js    | Utilidad           | Registro estructurado (JSON) de eventos y errores, con identificador de petición y sin datos personales.                                                                                        |
 
 # Fase 3 – 5. Diseño de la API REST
@@ -436,8 +436,8 @@ La API publica las peticiones modeladas en los diagramas de secuencia de la Fase
 | POST /calculadora/fpp                                              | Pública                      | { fum }                 | 200 { fpp, semanas, dias, trimestre, estudios\[\] }        | CU-01        |
 | GET /servicios                                                     | Pública                      | —                       | 200 \[ { id, nombre, indicaciones } \]                     | CU-03        |
 | GET /servicios/:id/preguntas                                       | Pública                      | —                       | 200 \[ { id, texto, tipo, obligatoria, opciones\[\] } \]   | CU-04        |
-| GET /turnos?servicioId&desde&hasta                                 | Pública                      | query                   | 200 \[ { id, fecha, horaInicio, horaFin } \]               | CU-02        |
-| POST /citas                                                        | Pública                      | crearCitaSchema         | 201 { codigo, servicio, fecha, horaInicio, correoEnviado } | CU-03, CU-05 |
+| GET /turnos?servicioId&desde&hasta                                 | Pública                      | query                   | 200 \[ { id, fecha, horaInicio, horaFin, disponible } \]   | CU-02        |
+| POST /citas                                                        | Pública                      | crearCitaSchema         | 201 { codigo, servicio, fecha, horaInicio, horaFin, indicaciones, correoEnviado } | CU-03, CU-05 |
 | POST /citas/acceso                                                 | Pública (límite de intentos) | { cedula, codigo }      | 200 { cita, tokenCita }                                    | CU-08        |
 | POST /citas/:codigo/cancelacion                                    | Token de cita                | —                       | 200 { cita }                                               | CU-06        |
 | PATCH /citas/:codigo                                               | Token de cita                | { turnoId }             | 200 { codigo, nuevoHorario }                               | CU-07        |
@@ -455,6 +455,8 @@ La API publica las peticiones modeladas en los diagramas de secuencia de la Fase
 | GET /salud                                                         | Pública                      | —                       | 200 { estado: "ok" } (no consulta la base de datos)        | RNF-05       |
 
 Respecto de la tabla de la Fase 2 solo cambian dos detalles de nombres: la agenda se agrupa bajo /admin/citas/agenda y la consulta de turnos usa servicioId en lugar de servicio. Las respuestas de error usan el formato de la sección 2.7 y los códigos ya definidos en la Fase 2 (sección 5.1). Las rutas se documentan en docs/api.md, que se mantiene a partir de esta tabla. La ruta /salud no toca la base de datos a propósito: así el monitor de disponibilidad puede consultarla cada 5 minutos sin despertar a Azure SQL.
+
+**Decisiones de la Iteración 1.** (a) GET /turnos devuelve también los turnos ocupados con disponible = false, para mostrarlos tachados como en la Figura 18 (sin datos de quién los reservó); antes de consultar genera con sp_generar_turnos los turnos que falten en el rango, acepta como máximo 31 días por consulta y hasta 90 días en adelante, y omite los turnos que ya empezaron según la hora de Managua. (b) POST /citas devuelve además horaFin e indicaciones para el comprobante (P3). (c) En las preguntas de tipo SELECCION se guarda cifrado el texto de la opción elegida, no su id, para que la ficha siga siendo legible si la opción cambia. (d) La versión del consentimiento (v1.0) corresponde a public/privacidad.html.
 
 # Fase 3 – 6. Diseño de seguridad y cumplimiento de la Ley 787
 

@@ -1,0 +1,168 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="Agenda tu cita en la Clínica Rueda en cuatro pasos.">
+  <title>Agendar cita — Clínica Rueda</title>
+  <link rel="stylesheet" href="/css/app.css">
+  <script type="module" src="/js/agendar.js"></script>
+</head>
+<body class="min-h-screen flex flex-col">
+  <a href="#contenido" class="sr-only focus:not-sr-only focus:absolute focus:left-4 focus:top-4 focus:z-10 focus:rounded focus:bg-white focus:px-4 focus:py-2">Saltar al contenido</a>
+  <header class="bg-baya text-white print:hidden">
+    <div class="mx-auto max-w-3xl px-4 py-4">
+      <a href="/" class="block">
+        <span class="block font-titulo text-xl font-bold">Clínica Rueda</span>
+        <span class="block text-sm text-white/90">Ginecología y obstetricia</span>
+      </a>
+    </div>
+  </header>
+
+  <main id="contenido" class="flex-1 mx-auto w-full max-w-3xl px-4 py-8">
+    <div id="flujo">
+      <h1 class="font-titulo text-2xl sm:text-3xl font-bold">Agendar cita</h1>
+
+      <!-- Progreso en 4 pasos (RNF-02) -->
+      <ol id="progreso" class="mt-4 grid grid-cols-4 gap-2 text-center text-xs sm:text-sm" aria-label="Pasos para agendar">
+        <li data-paso="1" class="paso border-t-4 border-tinta/20 pt-2 text-tinta-2">1. Servicio</li>
+        <li data-paso="2" class="paso border-t-4 border-tinta/20 pt-2 text-tinta-2">2. Día y hora</li>
+        <li data-paso="3" class="paso border-t-4 border-tinta/20 pt-2 text-tinta-2">3. Tus datos</li>
+        <li data-paso="4" class="paso border-t-4 border-tinta/20 pt-2 text-tinta-2">4. Pre-triaje</li>
+      </ol>
+
+      <p id="aviso" role="alert" class="mt-6 rounded-lg border border-error bg-white p-3 text-error" hidden></p>
+
+      <!-- Paso 1: servicio -->
+      <section id="paso-1" class="mt-6" aria-labelledby="titulo-paso-1">
+        <h2 id="titulo-paso-1" class="font-titulo text-xl font-bold" tabindex="-1">¿Qué servicio necesitas?</h2>
+        <fieldset class="mt-4">
+          <legend class="sr-only">Servicio</legend>
+          <div id="lista-servicios" class="grid gap-3 sm:grid-cols-2" aria-busy="true">
+            <p class="text-tinta-2">Cargando servicios…</p>
+          </div>
+        </fieldset>
+        <p id="servicio-error" class="mt-2 text-sm text-error" hidden></p>
+        <div class="mt-6 flex justify-end">
+          <button type="button" id="continuar-1" class="min-h-11 rounded-lg bg-baya px-5 font-bold text-white hover:bg-baya/90">Continuar</button>
+        </div>
+      </section>
+
+      <!-- Paso 2: día y hora (CU-02) -->
+      <section id="paso-2" class="mt-6" aria-labelledby="titulo-paso-2" hidden>
+        <h2 id="titulo-paso-2" class="font-titulo text-xl font-bold" tabindex="-1">Elige el día y la hora</h2>
+        <p class="mt-1 text-tinta-2">Servicio: <strong id="servicio-elegido"></strong></p>
+        <div class="mt-4 flex items-center justify-between gap-2">
+          <button type="button" id="semana-anterior" class="min-h-11 rounded-lg border border-tinta/30 bg-white px-3 disabled:opacity-40">← Anteriores</button>
+          <p id="rango-texto" class="text-center text-sm font-bold" aria-live="polite"></p>
+          <button type="button" id="semana-siguiente" class="min-h-11 rounded-lg border border-tinta/30 bg-white px-3 disabled:opacity-40">Siguientes →</button>
+        </div>
+        <p class="mt-3 flex flex-wrap gap-4 text-sm text-tinta-2">
+          <span class="inline-flex items-center gap-1"><span class="inline-block h-3 w-3 rounded-sm border border-baya bg-white"></span> Libre</span>
+          <span class="inline-flex items-center gap-1"><span class="inline-block h-3 w-3 rounded-sm bg-tinta/10"></span> <span class="line-through">Ocupado</span></span>
+          <span class="inline-flex items-center gap-1"><span class="inline-block h-3 w-3 rounded-sm bg-sol"></span> Tu elección</span>
+        </p>
+        <div id="lista-turnos" class="mt-4 grid gap-4" aria-live="polite"></div>
+        <p id="turno-error" class="mt-2 text-sm text-error" hidden></p>
+        <div class="mt-6 flex justify-between gap-3">
+          <button type="button" data-volver="1" class="min-h-11 rounded-lg border border-tinta/30 bg-white px-5 font-bold">Volver</button>
+          <button type="button" id="continuar-2" class="min-h-11 rounded-lg bg-baya px-5 font-bold text-white hover:bg-baya/90">Continuar</button>
+        </div>
+      </section>
+
+      <!-- Paso 3: datos y consentimiento (RN-05) -->
+      <section id="paso-3" class="mt-6" aria-labelledby="titulo-paso-3" hidden>
+        <h2 id="titulo-paso-3" class="font-titulo text-xl font-bold" tabindex="-1">Tus datos de contacto</h2>
+        <form id="form-datos" class="mt-4 grid gap-4 sm:grid-cols-2" novalidate>
+          <div>
+            <label for="cedula" class="block font-bold">Cédula</label>
+            <input id="cedula" name="cedula" autocomplete="off" inputmode="text" maxlength="16" placeholder="001-150390-0012K"
+                   aria-describedby="cedula-ayuda cedula-error" class="mt-1 block min-h-11 w-full rounded-lg border border-tinta/30 bg-white px-3 uppercase">
+            <p id="cedula-ayuda" class="mt-1 text-xs text-tinta-2">Con guiones y la letra final.</p>
+            <p id="cedula-error" class="mt-1 text-sm text-error" hidden></p>
+          </div>
+          <div>
+            <label for="nombres" class="block font-bold">Nombres y apellidos</label>
+            <input id="nombres" name="nombres" autocomplete="name" maxlength="80"
+                   aria-describedby="nombres-error" class="mt-1 block min-h-11 w-full rounded-lg border border-tinta/30 bg-white px-3">
+            <p id="nombres-error" class="mt-1 text-sm text-error" hidden></p>
+          </div>
+          <div>
+            <label for="telefono" class="block font-bold">Teléfono</label>
+            <input id="telefono" name="telefono" type="tel" autocomplete="tel-national" inputmode="numeric" maxlength="8" placeholder="88123456"
+                   aria-describedby="telefono-error" class="mt-1 block min-h-11 w-full rounded-lg border border-tinta/30 bg-white px-3">
+            <p id="telefono-error" class="mt-1 text-sm text-error" hidden></p>
+          </div>
+          <div>
+            <label for="correo" class="block font-bold">Correo electrónico</label>
+            <input id="correo" name="correo" type="email" autocomplete="email" maxlength="100" placeholder="nombre@gmail.com"
+                   aria-describedby="correo-ayuda correo-error" class="mt-1 block min-h-11 w-full rounded-lg border border-tinta/30 bg-white px-3">
+            <p id="correo-ayuda" class="mt-1 text-xs text-tinta-2">Ahí recibirás tu código de cita.</p>
+            <p id="correo-error" class="mt-1 text-sm text-error" hidden></p>
+          </div>
+          <div class="sm:col-span-2 rounded-lg bg-white p-4 shadow-sm">
+            <p class="font-bold">Consentimiento informado</p>
+            <p class="mt-1 text-sm text-tinta-2">La Clínica Rueda usará tus datos y las respuestas del pre-triaje solo para atender tu cita. Las respuestas clínicas se guardan cifradas y solo las ve la médica (Ley N.º 787).</p>
+            <label class="mt-3 flex min-h-11 items-start gap-3">
+              <input id="consentimiento" type="checkbox" aria-describedby="consentimiento-error" class="mt-1 h-5 w-5 shrink-0 accent-baya">
+              <span>Acepto la <a href="/privacidad.html" target="_blank" rel="noopener" class="font-bold text-baya underline">política de privacidad y el consentimiento informado</a>.</span>
+            </label>
+            <p id="consentimiento-error" class="mt-1 text-sm text-error" hidden></p>
+          </div>
+        </form>
+        <div class="mt-6 flex justify-between gap-3">
+          <button type="button" data-volver="2" class="min-h-11 rounded-lg border border-tinta/30 bg-white px-5 font-bold">Volver</button>
+          <button type="button" id="continuar-3" class="min-h-11 rounded-lg bg-baya px-5 font-bold text-white hover:bg-baya/90">Continuar</button>
+        </div>
+      </section>
+
+      <!-- Paso 4: pre-triaje (CU-04) y confirmación -->
+      <section id="paso-4" class="mt-6" aria-labelledby="titulo-paso-4" hidden>
+        <h2 id="titulo-paso-4" class="font-titulo text-xl font-bold" tabindex="-1">Pre-triaje</h2>
+        <p class="mt-1 text-tinta-2">Estas preguntas ayudan a la médica a preparar tu consulta. Las marcadas con <span class="text-error">*</span> son obligatorias.</p>
+        <form id="form-triaje" class="mt-4 grid gap-5" novalidate></form>
+
+        <div class="mt-6 rounded-lg border-l-4 border-sol bg-white p-4 shadow-sm">
+          <p class="font-bold">Resumen</p>
+          <dl id="resumen" class="mt-2 grid grid-cols-[auto_1fr] gap-x-4 gap-y-1 text-sm"></dl>
+        </div>
+
+        <div class="mt-6 flex justify-between gap-3">
+          <button type="button" data-volver="3" class="min-h-11 rounded-lg border border-tinta/30 bg-white px-5 font-bold">Volver</button>
+          <button type="button" id="confirmar" class="min-h-11 rounded-lg bg-salvia px-5 font-bold text-white hover:bg-salvia/90 disabled:opacity-60">Confirmar cita</button>
+        </div>
+      </section>
+    </div>
+
+    <!-- P3: comprobante (CU-03 paso 11, CU-05) -->
+    <section id="comprobante" aria-labelledby="titulo-comprobante" hidden>
+      <div class="rounded-lg bg-white p-6 shadow-sm">
+        <p class="inline-flex items-center gap-2 rounded-full bg-salvia px-3 py-1 text-sm font-bold text-white">✓ Cita confirmada</p>
+        <h1 id="titulo-comprobante" class="mt-4 font-titulo text-2xl font-bold" tabindex="-1">Tu comprobante</h1>
+        <p class="mt-4 text-sm text-tinta-2">Código de cita</p>
+        <p id="comp-codigo" class="font-titulo text-4xl font-bold tracking-widest text-baya"></p>
+        <p class="mt-1 text-sm text-tinta-2">Guárdalo: junto con tu cédula te permite cancelar o reprogramar la cita y consultar tus resultados.</p>
+        <dl class="mt-6 grid grid-cols-[auto_1fr] gap-x-4 gap-y-2">
+          <dt class="text-tinta-2">Servicio</dt><dd id="comp-servicio" class="font-bold"></dd>
+          <dt class="text-tinta-2">Fecha</dt><dd id="comp-fecha" class="font-bold"></dd>
+          <dt class="text-tinta-2">Hora</dt><dd id="comp-hora" class="font-bold"></dd>
+        </dl>
+        <div class="mt-6 rounded-lg border-l-4 border-sol bg-bruma p-4">
+          <p class="font-bold">Indicaciones previas</p>
+          <p id="comp-indicaciones" class="mt-1"></p>
+        </div>
+        <p id="comp-correo-ok" class="mt-4 text-salvia" hidden>Te enviamos este comprobante a tu correo.</p>
+        <p id="comp-correo-fallo" class="mt-4 rounded-lg border border-error p-3 text-error" role="status" hidden>No pudimos enviar el correo, pero tu cita sí quedó registrada. Anota tu código; la recepción te lo confirmará por otro medio.</p>
+      </div>
+      <div class="mt-6 flex flex-wrap gap-3 print:hidden">
+        <button type="button" id="imprimir" class="min-h-11 rounded-lg border border-tinta/30 bg-white px-5 font-bold">Imprimir o guardar</button>
+        <a href="/" class="inline-flex min-h-11 items-center rounded-lg bg-baya px-5 font-bold text-white hover:bg-baya/90">Volver al inicio</a>
+      </div>
+    </section>
+  </main>
+
+  <footer class="border-t border-tinta/10 print:hidden">
+    <p class="mx-auto max-w-3xl px-4 py-4 text-sm text-tinta-2">Tus datos se protegen conforme a la Ley N.º 787 de Protección de Datos Personales. <a href="/privacidad.html" class="underline">Política de privacidad</a>.</p>
+  </footer>
+</body>
+</html>
