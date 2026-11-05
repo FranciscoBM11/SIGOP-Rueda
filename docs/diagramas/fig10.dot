@@ -1,0 +1,23 @@
+digraph G {
+ rankdir=TB; nodesep=0.35; ranksep=0.55; fontname="DejaVu Sans";
+ node [fontname="DejaVu Sans" fontsize=13 margin="0.16,0.10"]; edge [style=dashed arrowhead=open color="#333333"];
+ auth [shape=box style="filled" fillcolor="#FFE6CC" color="#D79B00" label=<<B>auth</B><BR/>auth.routes · auth.service<BR/>sesiones · bloqueo · roles>];
+ usuarios [shape=box style="filled" fillcolor="#FFE6CC" color="#D79B00" label=<<B>usuarios</B><BR/>usuarios.repository>];
+ pacientes [shape=box style="filled" fillcolor="#DAE8FC" color="#6C8EBF" label=<<B>pacientes</B><BR/>pacientes.service<BR/>pacientes.repository>];
+ disp [shape=box style="filled" fillcolor="#DAE8FC" color="#6C8EBF" label=<<B>disponibilidad</B><BR/>turnos.service · horarios.service<BR/>generador de turnos>];
+ triaje [shape=box style="filled" fillcolor="#D5E8D4" color="#82B366" label=<<B>triaje</B><BR/>triaje.service<BR/>fichas cifradas (solo médica)>];
+ calc [shape=box style="filled" fillcolor="#DAE8FC" color="#6C8EBF" label=<<B>calculadora</B><BR/>calculadora.service<BR/>Naegele · semanas · trimestre>];
+ cat [shape=box style="filled" fillcolor="#D5E8D4" color="#82B366" label=<<B>catalogo</B><BR/>servicios · preguntas · opciones<BR/>estudios sugeridos>];
+ citas [shape=box style="filled" fillcolor="#FFF2CC" color="#D6B656" label=<<B>citas</B><BR/>citas.routes · citas.controller<BR/>citas.service · citas.repository<BR/>maquina-estados-cita>];
+ seg [shape=box style="filled" fillcolor="#F5F5F5" color="#666666" label=<<B>seguridad</B><BR/>acceso-publico.service<BR/>token de cita · intentos>];
+ res [shape=box style="filled" fillcolor="#DAE8FC" color="#6C8EBF" label=<<B>resultados</B><BR/>informes.service<BR/>validador de PDF>];
+ not [shape=box style="filled" fillcolor="#F5F5F5" color="#666666" label=<<B>notificaciones</B><BR/>notificaciones.service<BR/>canal-correo · canal-whatsapp (futuro)>];
+ com [shape=box style="filled" fillcolor="#F8CECC" color="#B85450" label=<<B>common</B><BR/>cifrado · validadores · errores<BR/>middlewares · configuración>];
+ auth -> usuarios;
+ citas -> pacientes; citas -> disp; citas -> triaje; citas -> cat; citas -> seg; citas -> not;
+ triaje -> cat; calc -> cat; res -> citas; res -> seg;
+ {rank=same; auth; pacientes; disp; triaje; calc}
+ {rank=same; usuarios; citas; cat}
+ {rank=same; seg; res; not; com}
+ label="Flecha discontinua = «usa» (dependencia). Todos los módulos dependen de common; se omite para mayor claridad."; labelloc=b; fontsize=10;
+}

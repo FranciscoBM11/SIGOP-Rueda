@@ -1,0 +1,21 @@
+digraph G {
+ rankdir=TB; newrank=true; nodesep=0.5; ranksep=0.55; fontname="DejaVu Sans";
+ node [shape=box style="rounded,filled" fontname="DejaVu Sans" fontsize=14 margin="0.16,0.10"]; edge [fontname="DejaVu Sans" fontsize=12 color="#333333"];
+ nav [label=<<B>«device» Navegador web</B><BR/>paciente (teléfono, QR)<BR/>personal (PC, laptop)>, fillcolor="#DAE8FC", color="#6C8EBF"];
+ lap [label=<<B>Plan B: «device» laptop del equipo</B><BR/>npm start (puerto 3000) + SQL Server<BR/>Express o Developer + SSMS 22<BR/>Wi-Fi local o túnel gratuito>, style="rounded,dashed,filled", fillcolor="#FFFDF5", color="#D6B656"];
+ inet [shape=ellipse style=filled label=<<B>«cloud» Internet</B><BR/>DNS · enlace o código QR>, fillcolor="#F5F5F5", color="#666666"];
+ cdn [label=<<B>«node» CDN</B><BR/>jsDelivr: librería FullCalendar>, fillcolor="#F5F5F5", color="#666666"];
+ mon [label=<<B>UptimeRobot (gratis)</B><BR/>consulta /api/v1/salud<BR/>cada 5 minutos>, fillcolor="#F5F5F5", color="#666666"];
+ gh [label=<<B>GitHub</B><BR/>repositorio + Actions (pruebas)<BR/>despliegue automático en main>, fillcolor="#F5F5F5", color="#666666"];
+ smtp [label=<<B>Servicio SMTP</B><BR/>Gmail o Brevo (gratis)>, fillcolor="#F5F5F5", color="#666666"];
+ subgraph cluster_render { label="«node» Render: Web Service (capa gratuita)"; style="rounded,filled"; fillcolor="#F0F6FF"; color="#6C8EBF";
+   web [label=<<B>«node» Servidor web / proxy inverso</B><BR/>borde de Render (función de Nginx)<BR/>TLS 443 · redirige HTTP a HTTPS>, fillcolor="#DAE8FC", color="#6C8EBF"];
+   api [label=<<B>sigop-rueda</B> (Node.js + Express)<BR/>API y archivos estáticos<BR/>GET /api/v1/salud>, fillcolor="#FFF2CC", color="#D6B656"]; }
+ subgraph cluster_az { label="«node» Azure SQL Database (oferta gratuita)"; style="rounded,filled"; fillcolor="#F0FFF0"; color="#82B366";
+   db [shape=cylinder style=filled label=<<B>SIGOP</B><BR/>18 tablas · 32 GB>, fillcolor="#D5E8D4", color="#82B366"]; }
+ {rank=same; nav; lap} {rank=same; inet; cdn} {rank=same; web; mon} {rank=same; api; gh} {rank=same; db; smtp}
+ nav -> inet [label=" HTTPS"]; nav -> cdn [label=" HTTPS" style=dashed]; nav -> lap [label=" alterno" style=dashed constraint=false];
+ inet -> web [label=" HTTPS 443"]; mon -> web [label=" HTTPS" constraint=false];
+ web -> api [label=" HTTP interno"]; gh -> api [label=" despliegue" style=dashed constraint=false];
+ api -> db [label=" TDS 1433 (TLS)"]; api -> smtp [label=" SMTP 587"];
+}

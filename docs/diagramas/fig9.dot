@@ -1,0 +1,24 @@
+digraph G {
+ rankdir=TB; nodesep=0.35; ranksep=0.42; fontname="DejaVu Sans"; bgcolor="white"; compound=true;
+ node [shape=box style="rounded,filled" fontname="DejaVu Sans" fontsize=13 margin="0.18,0.10"];
+ edge [fontname="DejaVu Sans" fontsize=11 color="#333333"];
+ subgraph cluster_cli { label="Dispositivo del usuario (teléfono, PC de recepción, laptop)"; style="rounded,filled"; fillcolor="#FAFAFA"; color="#999999"; fontsize=13;
+   nav [label=<<B>Navegador web (Vista)</B><BR/>HTML5 · Tailwind CSS · JavaScript en módulos ES<BR/>FullCalendar (solo en la agenda del panel)>, fillcolor="#DAE8FC", color="#6C8EBF"]; }
+ subgraph cluster_app { label="Aplicación web Node.js + Express (un solo servicio, un solo despliegue)"; style="rounded,filled"; fillcolor="#FAFAFA"; color="#999999"; fontsize=13;
+   est [label=<<B>Archivos estáticos</B><BR/>public/: páginas HTML, CSS y JS>, fillcolor="#DAE8FC", color="#6C8EBF"];
+   mw  [label=<<B>Middlewares</B><BR/>Helmet · límite de peticiones · sesión (cookie JWT)<BR/>roles · token de cita · validación de entrada>, fillcolor="#FFE6CC", color="#D79B00"];
+   rut [label=<<B>Rutas</B> /api/v1/...>, fillcolor="#FFF2CC", color="#D6B656"];
+   ctl [label=<<B>Controladores</B><BR/>reciben la petición y responden JSON>, fillcolor="#FFF2CC", color="#D6B656"];
+   srv [label=<<B>Servicios</B><BR/>reglas de negocio RN-01 a RN-16 · máquina de estados<BR/>transacciones · notificaciones>, fillcolor="#D5E8D4", color="#82B366"];
+   rep [label=<<B>Repositorios</B><BR/>consultas SQL parametrizadas (paquete mssql)>, fillcolor="#D5E8D4", color="#82B366"];
+   com [label=<<B>common</B><BR/>cifrado AES-256-GCM · validadores ER-01 a ER-10<BR/>errores · configuración (.env) · registro de eventos>, fillcolor="#F8CECC", color="#B85450"];
+ }
+ db [shape=cylinder style=filled fillcolor="#F5F5F5" color="#666666" label=<<B>SQL Server</B><BR/>Azure SQL Database (gratis) o instancia local<BR/>administrada con SSMS 22>];
+ smtp [label=<<B>Servidor SMTP</B><BR/>Gmail o Brevo (plan gratuito)<BR/>vía Nodemailer>, fillcolor="#F5F5F5", color="#666666"];
+ nav -> est [label=" HTTPS: páginas y estilos"];
+ nav -> mw [label=" HTTPS + JSON"];
+ mw -> rut -> ctl -> srv -> rep;
+ srv -> com [style=dashed label=" usa"];
+ rep -> db [label=" TDS 1433 (TLS)"];
+ srv -> smtp [label=" SMTP 587"];
+}
