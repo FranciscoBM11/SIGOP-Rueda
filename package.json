@@ -1,0 +1,41 @@
+{
+  "name": "sigop-rueda",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Sistema de Información Gineco-Obstétrica y Pre-triaje de la Clínica Rueda",
+  "main": "src/server.js",
+  "type": "commonjs",
+  "engines": {
+    "node": ">=22"
+  },
+  "scripts": {
+    "start": "node src/server.js",
+    "dev": "node --watch src/server.js",
+    "test": "jest",
+    "css": "tailwindcss -i ./public/css/tailwind.css -o ./public/css/app.css --minify",
+    "css:watch": "tailwindcss -i ./public/css/tailwind.css -o ./public/css/app.css --watch",
+    "db:verificar": "node src/config/verificar-bd.js"
+  },
+  "jest": {
+    "testEnvironment": "node",
+    "setupFiles": [
+      "<rootDir>/tests/setup-env.js"
+    ],
+    "testMatch": [
+      "<rootDir>/tests/**/*.test.js",
+      "<rootDir>/src/**/*.test.js"
+    ]
+  },
+  "dependencies": {
+    "express": "^5.3.0",
+    "helmet": "^8.3.0",
+    "mssql": "^12.7.14",
+    "zod": "^4.6.7"
+  },
+  "devDependencies": {
+    "@tailwindcss/cli": "^4.3.4",
+    "jest": "^30.5.2",
+    "supertest": "^7.3.1",
+    "tailwindcss": "^4.3.4"
+  }
+}

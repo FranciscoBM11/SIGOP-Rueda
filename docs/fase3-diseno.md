@@ -195,7 +195,7 @@ El repositorio es único y contiene el servidor, el frontend, los scripts de la 
 >
 > │ │ informes.html, disponibilidad.html
 >
-> │ ├── css/ app.css (generado con Tailwind)
+> │ ├── css/ tailwind.css (fuente) y app.css (generado con npm run css; se versiona para que Render no necesite paso de compilación)
 >
 > │ └── js/ api.js, páginas y componentes
 >
@@ -213,7 +213,7 @@ El repositorio es único y contiene el servidor, el frontend, los scripts de la 
 | Fechas             | ISO 8601 en la API (2026-11-09, 09:30); zona horaria America/Managua. Las fechas de turnos se guardan como DATE y TIME; las de auditoría, como DATETIME2 en UTC.                                        |
 | Llaves             | INT IDENTITY en todas las tablas; solo sesiones usa UNIQUEIDENTIFIER porque su identificador viaja en la cookie y no debe poder adivinarse.                                                             |
 | Respuesta de error | JSON uniforme: { "codigo": "TURNO_OCUPADO", "mensaje": "El turno ya fue reservado. Elige otro.", "detalles": \[\] } con el código HTTP correspondiente.                                                 |
-| Códigos HTTP       | 200 consulta, 201 creación, 400 datos inválidos, 401 sin sesión o token, 403 sin permiso, 404 no existe, 409 conflicto de negocio, 422 archivo inválido, 423 cuenta bloqueada, 429 demasiados intentos. |
+| Códigos HTTP       | 200 consulta, 201 creación, 400 datos inválidos, 401 sin sesión o token, 403 sin permiso, 404 no existe, 409 conflicto de negocio, 413 cuerpo demasiado grande, 422 archivo inválido, 423 cuenta bloqueada, 429 demasiados intentos, 500 error interno, 503 base de datos no disponible (tras los reintentos). Catálogo de códigos en docs/api.md. |
 | Consultas SQL      | Siempre parametrizadas (request.input); nunca se concatena texto del usuario en una consulta.                                                                                                           |
 | Commits            | Convención Conventional Commits en español: feat(citas): agendar con transacción; fix(triaje): validar obligatorias.                                                                                    |
 
@@ -418,11 +418,11 @@ Los demás módulos siguen la misma estructura. La tabla lista sus archivos y cl
 | **Archivo**    | **Tipo**           | **Responsabilidad**                                                                                                                                                                             |
 |----------------|--------------------|-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
 | cifrado.js     | Utilidad           | Cifra y descifra con AES-256-GCM (IV aleatorio de 12 bytes por valor); la clave de 32 bytes se lee de la variable CLAVE_CIFRADO. Se usa en respuestas de triaje y en los PDF.                   |
-| base-datos.js  | Utilidad           | Crea el pool de conexiones de mssql, ofrece el ayudante transaccion(fn) y reintenta la conexión (3 intentos con espera creciente) para cuando Azure SQL está pausado y tarda en despertar.      |
+| base-datos.js  | Utilidad           | Crea el pool de conexiones de mssql, ofrece el ayudante transaccion(fn) y reintenta la conexión (3 intentos con espera creciente de 2 s y 4 s) para cuando Azure SQL está pausado y tarda en despertar. La conexión se abre en la primera consulta, no al arrancar. Vive en src/config/ (sección 2.6). |
 | validadores.js | Utilidad           | Expresiones regulares ER-01 a ER-10 y funciones de validación compartidas por todos los esquemas.                                                                                               |
 | errores.js     | Clase y middleware | Clase ErrorNegocio(codigo, mensaje, http) y manejador global que convierte cualquier excepción en la respuesta de error estándar; el detalle técnico va solo al registro, sin datos personales. |
 | middlewares/   | Middlewares        | sesion (verifica la cookie y renueva la inactividad), requiereRol (RN-11, RN-16), tokenCita, limitePeticiones (express-rate-limit) y la configuración de Helmet.                                |
-| config.js      | Configuración      | Carga y valida las variables de entorno al iniciar; la aplicación no arranca si falta una.                                                                                                      |
+| config.js      | Configuración      | Carga y valida las variables de entorno al iniciar; la aplicación no arranca si falta una. Vive en src/config/ (sección 2.6); las variables de SMTP pasan a obligatorias en la Iteración 1.     |
 | registro.js    | Utilidad           | Registro estructurado (JSON) de eventos y errores, con identificador de petición y sin datos personales.                                                                                        |
 
 # Fase 3 – 5. Diseño de la API REST
