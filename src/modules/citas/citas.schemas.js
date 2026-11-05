@@ -43,4 +43,28 @@ const reprogramarCitaSchema = z.strictObject({
   turnoId: esquemas.id,
 });
 
-module.exports = { crearCitaSchema, accesoCitaSchema, reprogramarCitaSchema, VERSION_CONSENTIMIENTO };
+// ---- Panel del personal ------------------------------------------------------
+
+// :codigo de las rutas /admin/citas/:codigo (ER-05).
+const codigoRutaSchema = z.strictObject({ codigo: esquemas.codigoCita });
+
+// CU-11: GET /admin/citas/agenda?fecha=AAAA-MM-DD (por defecto, hoy en Managua).
+const agendaSchema = z.strictObject({ fecha: esquemas.fecha.optional() });
+
+// CU-12: estado al que se lleva la cita. Confirmada no es destino de un cambio
+// del personal (reprogramar la mantiene Confirmada, RN-06).
+const cambiarEstadoSchema = z.strictObject({
+  estado: z.enum(['EN_ESPERA', 'ATENDIDA', 'NO_ASISTIO', 'CANCELADA'], {
+    message: 'El estado debe ser EN_ESPERA, ATENDIDA, NO_ASISTIO o CANCELADA.',
+  }),
+});
+
+module.exports = {
+  crearCitaSchema,
+  accesoCitaSchema,
+  reprogramarCitaSchema,
+  codigoRutaSchema,
+  agendaSchema,
+  cambiarEstadoSchema,
+  VERSION_CONSENTIMIENTO,
+};

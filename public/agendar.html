@@ -73,7 +73,7 @@
       <!-- Paso 3: datos y consentimiento (RN-05) -->
       <section id="paso-3" class="mt-6" aria-labelledby="titulo-paso-3" hidden>
         <h2 id="titulo-paso-3" class="font-titulo text-xl font-bold" tabindex="-1">Tus datos de contacto</h2>
-        <form id="form-datos" class="mt-4 grid gap-4 sm:grid-cols-2" novalidate>
+        <form id="form-datos" class="mt-4 grid gap-4 sm:grid-cols-2" autocomplete="off" novalidate>
           <div>
             <label for="cedula" class="block font-bold">Cédula</label>
             <input id="cedula" name="cedula" autocomplete="off" inputmode="text" maxlength="16" placeholder="001-150390-0012K"
@@ -83,19 +83,19 @@
           </div>
           <div>
             <label for="nombres" class="block font-bold">Nombres y apellidos</label>
-            <input id="nombres" name="nombres" autocomplete="name" maxlength="80"
+            <input id="nombres" name="nombres" autocomplete="off" maxlength="80"
                    aria-describedby="nombres-error" class="mt-1 block min-h-11 w-full rounded-lg border border-tinta/30 bg-white px-3">
             <p id="nombres-error" class="mt-1 text-sm text-error" hidden></p>
           </div>
           <div>
             <label for="telefono" class="block font-bold">Teléfono</label>
-            <input id="telefono" name="telefono" type="tel" autocomplete="tel-national" inputmode="numeric" maxlength="8" placeholder="88123456"
+            <input id="telefono" name="telefono" type="tel" autocomplete="off" inputmode="numeric" maxlength="8" placeholder="88123456"
                    aria-describedby="telefono-error" class="mt-1 block min-h-11 w-full rounded-lg border border-tinta/30 bg-white px-3">
             <p id="telefono-error" class="mt-1 text-sm text-error" hidden></p>
           </div>
           <div>
             <label for="correo" class="block font-bold">Correo electrónico</label>
-            <input id="correo" name="correo" type="email" autocomplete="email" maxlength="100" placeholder="nombre@gmail.com"
+            <input id="correo" name="correo" type="email" autocomplete="off" maxlength="100" placeholder="nombre@gmail.com"
                    aria-describedby="correo-ayuda correo-error" class="mt-1 block min-h-11 w-full rounded-lg border border-tinta/30 bg-white px-3">
             <p id="correo-ayuda" class="mt-1 text-xs text-tinta-2">Ahí recibirás tu código de cita.</p>
             <p id="correo-error" class="mt-1 text-sm text-error" hidden></p>
@@ -104,7 +104,7 @@
             <p class="font-bold">Consentimiento informado</p>
             <p class="mt-1 text-sm text-tinta-2">La Clínica Rueda usará tus datos y las respuestas del pre-triaje solo para atender tu cita. Las respuestas clínicas se guardan cifradas y solo las ve la médica (Ley N.º 787).</p>
             <label class="mt-3 flex min-h-11 items-start gap-3">
-              <input id="consentimiento" type="checkbox" aria-describedby="consentimiento-error" class="mt-1 h-5 w-5 shrink-0 accent-baya">
+              <input id="consentimiento" type="checkbox" autocomplete="off" aria-describedby="consentimiento-error" class="mt-1 h-5 w-5 shrink-0 accent-baya">
               <span>Acepto la <a href="/privacidad.html" target="_blank" rel="noopener" class="font-bold text-baya underline">política de privacidad y el consentimiento informado</a>.</span>
             </label>
             <p id="consentimiento-error" class="mt-1 text-sm text-error" hidden></p>
@@ -120,7 +120,7 @@
       <section id="paso-4" class="mt-6" aria-labelledby="titulo-paso-4" hidden>
         <h2 id="titulo-paso-4" class="font-titulo text-xl font-bold" tabindex="-1">Pre-triaje</h2>
         <p class="mt-1 text-tinta-2">Estas preguntas ayudan a la médica a preparar tu consulta. Las marcadas con <span class="text-error">*</span> son obligatorias.</p>
-        <form id="form-triaje" class="mt-4 grid gap-5" novalidate></form>
+        <form id="form-triaje" class="mt-4 grid gap-5" autocomplete="off" novalidate></form>
 
         <div class="mt-6 rounded-lg border-l-4 border-sol bg-white p-4 shadow-sm">
           <p class="font-bold">Resumen</p>

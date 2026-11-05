@@ -1,0 +1,167 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="robots" content="noindex">
+  <title>Agenda del día — Panel Clínica Rueda</title>
+  <link rel="stylesheet" href="/css/app.css">
+  <script type="module" src="/js/admin-agenda.js"></script>
+</head>
+<!-- Oculto hasta comprobar la sesión (admin-comun.js). -->
+<body class="min-h-screen lg:flex" hidden>
+  <a href="#contenido" class="sr-only focus:not-sr-only focus:absolute focus:left-4 focus:top-4 focus:z-10 focus:rounded focus:bg-white focus:px-4 focus:py-2">Saltar al contenido</a>
+
+  <!-- Barra superior en móvil (Figura 22) -->
+  <header class="flex items-center justify-between gap-3 bg-tinta px-4 py-3 text-white lg:hidden">
+    <div class="flex items-center gap-3">
+      <span class="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-baya" aria-hidden="true"><span class="h-3 w-3 rounded-full bg-sol"></span></span>
+      <span>
+        <span class="block font-titulo text-lg font-bold">Clínica Rueda</span>
+        <span class="block text-sm text-white/80">Panel</span>
+      </span>
+    </div>
+    <button type="button" id="abrir-menu" aria-expanded="false" aria-controls="menu-panel"
+            class="min-h-11 rounded-lg border border-white/40 px-4 font-bold hover:bg-white/10">Menú</button>
+  </header>
+
+  <!-- Menú lateral (escritorio) / desplegable (móvil) -->
+  <aside id="menu-panel" class="hidden bg-tinta text-white lg:sticky lg:top-0 lg:flex lg:h-screen lg:w-72 lg:shrink-0 lg:flex-col">
+    <div class="hidden items-center gap-3 px-6 pt-8 lg:flex">
+      <span class="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-baya" aria-hidden="true"><span class="h-3 w-3 rounded-full bg-sol"></span></span>
+      <span>
+        <span class="block font-titulo text-xl font-bold">Clínica Rueda</span>
+        <span class="block text-sm text-white/80">Panel</span>
+      </span>
+    </div>
+    <nav class="px-4 py-4 lg:mt-6" aria-label="Panel">
+      <a href="/admin/agenda.html" aria-current="page"
+         class="flex min-h-11 items-center rounded-lg border-l-4 border-sol bg-white/10 px-4 font-bold">Agenda del día</a>
+    </nav>
+    <div class="mt-auto border-t border-white/15 px-6 py-5">
+      <p class="font-bold" data-usuario-nombre></p>
+      <p class="text-sm text-white/80" data-usuario-rol></p>
+      <button type="button" data-cerrar-sesion class="mt-2 min-h-11 font-bold text-sol underline disabled:opacity-60">Cerrar sesión</button>
+    </div>
+  </aside>
+
+  <main id="contenido" class="min-w-0 flex-1 px-4 py-6 sm:px-6 lg:px-10 lg:py-8">
+    <!-- A2 Agenda diaria (CU-11) -->
+    <div class="flex flex-wrap items-start justify-between gap-4">
+      <div>
+        <h1 id="titulo" class="font-titulo text-2xl font-bold sm:text-3xl" tabindex="-1">Agenda</h1>
+        <p id="resumen" class="mt-1 text-tinta-2" aria-live="polite"></p>
+      </div>
+      <div class="flex flex-wrap items-center gap-2">
+        <button type="button" id="dia-anterior" class="min-h-11 rounded-lg border border-tinta/20 bg-white px-4 font-bold hover:bg-bruma">Día anterior</button>
+        <button type="button" id="hoy" class="min-h-11 rounded-lg border border-tinta/20 bg-white px-4 font-bold hover:bg-bruma disabled:opacity-50">Hoy</button>
+        <button type="button" id="dia-siguiente" class="min-h-11 rounded-lg border border-tinta/20 bg-white px-4 font-bold hover:bg-bruma">Día siguiente</button>
+      </div>
+    </div>
+
+    <div class="mt-4 flex flex-wrap items-end gap-3">
+      <div>
+        <label for="fecha" class="block text-sm font-bold">Ir a la fecha</label>
+        <input id="fecha" type="date" autocomplete="off" class="mt-1 min-h-11 rounded-lg border border-tinta/30 bg-white px-3">
+      </div>
+      <button type="button" id="actualizar" class="min-h-11 rounded-lg border border-tinta/20 bg-white px-4 font-bold hover:bg-bruma">Actualizar</button>
+    </div>
+
+    <p id="aviso" role="alert" class="mt-4 rounded-lg border border-error bg-white p-3 text-error" hidden></p>
+    <p id="aviso-ok" role="status" class="mt-4 rounded-lg border border-salvia/40 bg-salvia/10 p-3 text-salvia" hidden></p>
+
+    <div id="filtros" class="mt-5 flex flex-wrap gap-2" role="group" aria-label="Filtrar por estado"></div>
+
+    <p id="vacio" class="mt-5 rounded-lg bg-white p-5 text-tinta-2 shadow-sm" hidden></p>
+
+    <!-- Escritorio: tabla -->
+    <div id="contenedor-tabla" class="mt-5 hidden overflow-x-auto rounded-xl bg-white shadow-sm md:block">
+      <table class="w-full text-left">
+        <caption class="sr-only">Citas del día</caption>
+        <thead class="border-b border-tinta/10 bg-bruma/60 text-sm text-tinta-2">
+          <tr>
+            <th scope="col" class="px-4 py-3 font-bold">Hora</th>
+            <th scope="col" class="px-4 py-3 font-bold">Paciente</th>
+            <th scope="col" class="px-4 py-3 font-bold">Servicio</th>
+            <th scope="col" class="px-4 py-3 font-bold">Código</th>
+            <th scope="col" class="px-4 py-3 font-bold">Estado</th>
+            <th scope="col" class="px-4 py-3 font-bold">Acciones</th>
+          </tr>
+        </thead>
+        <tbody id="filas"></tbody>
+      </table>
+    </div>
+
+    <!-- Móvil: tarjetas -->
+    <ul id="tarjetas" class="mt-5 grid gap-3 md:hidden" aria-label="Citas del día"></ul>
+  </main>
+
+  <!-- A3 Ficha de triaje (CU-14), solo para la médica -->
+  <dialog id="dlg-triaje" aria-labelledby="triaje-titulo"
+          class="m-auto w-[calc(100%-2rem)] max-w-2xl rounded-2xl bg-white p-0 text-tinta shadow-xl backdrop:bg-tinta/60">
+    <div class="flex flex-wrap items-start justify-between gap-3 border-b border-tinta/10 p-5 sm:p-6">
+      <div class="min-w-0">
+        <h2 id="triaje-titulo" class="font-titulo text-xl font-bold break-words"></h2>
+        <p id="triaje-sub" class="mt-1 text-tinta-2"></p>
+      </div>
+      <span id="triaje-estado" class="rounded-full border px-3 py-1 text-sm font-bold"></span>
+    </div>
+    <div class="max-h-[60vh] overflow-y-auto p-5 sm:p-6">
+      <p id="triaje-cargando" class="text-tinta-2">Cargando la ficha…</p>
+      <p id="triaje-aviso" role="alert" class="rounded-lg border border-error bg-white p-3 text-error" hidden></p>
+      <dl id="triaje-respuestas" class="divide-y divide-tinta/10"></dl>
+      <p id="triaje-fecha" class="mt-4 text-sm text-tinta-2"></p>
+    </div>
+    <div class="flex flex-col-reverse gap-3 border-t border-tinta/10 p-5 sm:flex-row sm:justify-end sm:p-6">
+      <button type="button" data-cerrar-dialogo class="min-h-11 rounded-lg border border-tinta/20 bg-white px-5 font-bold hover:bg-bruma">Cerrar</button>
+      <button type="button" id="triaje-atendida" class="min-h-11 rounded-lg bg-salvia px-5 font-bold text-white hover:bg-salvia/90 disabled:opacity-60" hidden>Marcar como atendida</button>
+    </div>
+  </dialog>
+
+  <!-- Gestión desde recepción (CU-12 No asistió, CU-13 cancelar o reprogramar) -->
+  <dialog id="dlg-gestion" aria-labelledby="gestion-titulo"
+          class="m-auto w-[calc(100%-2rem)] max-w-3xl rounded-2xl bg-white p-0 text-tinta shadow-xl backdrop:bg-tinta/60">
+    <div class="border-b border-tinta/10 p-5 sm:p-6">
+      <h2 id="gestion-titulo" class="font-titulo text-xl font-bold break-words"></h2>
+      <p id="gestion-sub" class="mt-1 text-tinta-2"></p>
+    </div>
+    <div class="max-h-[65vh] overflow-y-auto p-5 sm:p-6">
+      <p id="gestion-aviso" role="alert" class="mb-4 rounded-lg border border-error bg-white p-3 text-error" hidden></p>
+
+      <div id="gestion-opciones" class="grid gap-3 sm:grid-cols-2">
+        <button type="button" id="g-no-asistio" class="min-h-11 rounded-lg border border-tinta/20 bg-white px-5 font-bold hover:bg-bruma">Marcar «No asistió»</button>
+        <button type="button" id="g-abrir-reprogramar" class="min-h-11 rounded-lg bg-baya px-5 font-bold text-white hover:bg-baya/90">Reprogramar</button>
+        <button type="button" id="g-abrir-cancelar" class="min-h-11 rounded-lg border border-error bg-white px-5 font-bold text-error hover:bg-error/5">Cancelar cita</button>
+        <p id="g-sin-opciones" class="text-tinta-2 sm:col-span-2" hidden>No hay acciones disponibles para esta cita.</p>
+      </div>
+
+      <div id="gestion-cancelar" class="rounded-lg border border-error/40 bg-error/5 p-4" hidden>
+        <p class="font-bold">¿Cancelar esta cita a pedido de la paciente?</p>
+        <p class="mt-1 text-sm">El horario quedará libre de inmediato para otra paciente. No se puede deshacer.</p>
+        <div class="mt-4 flex flex-wrap gap-3">
+          <button type="button" id="g-si-cancelar" class="min-h-11 rounded-lg bg-error px-5 font-bold text-white hover:bg-error/90 disabled:opacity-60">Sí, cancelar la cita</button>
+          <button type="button" data-volver-opciones class="min-h-11 rounded-lg border border-tinta/20 bg-white px-5 font-bold">No, volver</button>
+        </div>
+      </div>
+
+      <div id="gestion-reprogramar" hidden>
+        <p class="font-bold">Elige el nuevo día y hora</p>
+        <p class="mt-1 text-sm text-tinta-2">La cita conserva su código y la paciente recibe el nuevo horario por correo.</p>
+        <div class="mt-3 flex items-center justify-between gap-2">
+          <button type="button" id="g-anteriores" class="min-h-11 rounded-lg border border-tinta/30 bg-white px-3 disabled:opacity-40">← Anteriores</button>
+          <p id="g-rango" class="text-center text-sm font-bold" aria-live="polite"></p>
+          <button type="button" id="g-siguientes" class="min-h-11 rounded-lg border border-tinta/30 bg-white px-3 disabled:opacity-40">Siguientes →</button>
+        </div>
+        <div id="g-turnos" class="mt-4 grid gap-4" aria-live="polite"></div>
+        <div class="mt-5 flex flex-wrap justify-between gap-3">
+          <button type="button" data-volver-opciones class="min-h-11 rounded-lg border border-tinta/20 bg-white px-5 font-bold">Volver</button>
+          <button type="button" id="g-confirmar-reprogramar" class="min-h-11 rounded-lg bg-salvia px-5 font-bold text-white hover:bg-salvia/90 disabled:opacity-60" disabled>Confirmar nuevo horario</button>
+        </div>
+      </div>
+    </div>
+    <div class="flex justify-end border-t border-tinta/10 p-5 sm:p-6">
+      <button type="button" data-cerrar-dialogo class="min-h-11 rounded-lg border border-tinta/20 bg-white px-5 font-bold hover:bg-bruma">Cerrar</button>
+    </div>
+  </dialog>
+</body>
+</html>

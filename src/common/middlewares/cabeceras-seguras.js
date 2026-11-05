@@ -1,8 +1,9 @@
 'use strict';
 
 // Cabeceras HTTP seguras con Helmet (RNF-04).
-// La CSP solo permite recursos propios. Cuando entre FullCalendar
-// (Iteración 3) se añadirá https://cdn.jsdelivr.net a script-src y style-src.
+// La CSP solo permite recursos propios (sin scripts ni estilos en línea).
+// El panel no usa FullCalendar (decisión de la Iteración 3); si algún día se
+// agrega desde jsDelivr habrá que sumar https://cdn.jsdelivr.net a script-src y style-src.
 const helmet = require('helmet');
 
 function cabecerasSeguras() {

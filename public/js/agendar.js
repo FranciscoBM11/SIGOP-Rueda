@@ -219,7 +219,7 @@ const CLASE_CAMPO = 'mt-1 block min-h-11 w-full rounded-lg border border-tinta/3
 
 function controlPregunta(p) {
   const id = `pregunta-${p.id}`;
-  const comunes = { id, name: id, 'aria-describedby': `${id}-error`, 'aria-required': p.obligatoria ? 'true' : false };
+  const comunes = { id, name: id, autocomplete: 'off', 'aria-describedby': `${id}-error`, 'aria-required': p.obligatoria ? 'true' : false };
   switch (p.tipo) {
     case 'TEXTO':
       return el('textarea', { ...comunes, rows: '3', maxlength: '500', class: `${CLASE_CAMPO} py-2` });
@@ -242,7 +242,7 @@ function controlPregunta(p) {
           el(
             'label',
             { class: 'flex min-h-11 cursor-pointer items-center gap-2 rounded-lg border border-tinta/30 bg-white px-4 has-[:checked]:border-baya has-[:checked]:font-bold' },
-            el('input', { type: 'radio', name: id, value: v, class: 'h-5 w-5 accent-baya' }),
+            el('input', { type: 'radio', name: id, value: v, autocomplete: 'off', class: 'h-5 w-5 accent-baya' }),
             v === 'SI' ? 'Sí' : 'No',
           ),
         ),

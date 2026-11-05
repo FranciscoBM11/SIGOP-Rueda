@@ -31,10 +31,10 @@
       <h2 id="titulo-fpp" class="font-titulo text-xl sm:text-2xl font-bold">Calcula tu fecha probable de parto</h2>
       <p class="mt-1 text-tinta-2">Con la fecha del primer día de tu última menstruación (FUM). No necesitas registrarte.</p>
 
-      <form id="form-fpp" class="mt-4 flex flex-col gap-3 sm:flex-row sm:items-start" novalidate>
+      <form id="form-fpp" class="mt-4 flex flex-col gap-3 sm:flex-row sm:items-start" autocomplete="off" novalidate>
         <div class="flex-1">
           <label for="fum" class="block font-bold">Fecha de última menstruación</label>
-          <input id="fum" name="fum" type="date" required aria-describedby="fum-error"
+          <input id="fum" name="fum" type="date" autocomplete="off" required aria-describedby="fum-error"
                  class="mt-1 block min-h-11 w-full rounded-lg border border-tinta/30 bg-white px-3">
           <p id="fum-error" class="mt-1 text-sm text-error" hidden></p>
         </div>
@@ -63,7 +63,7 @@
   </main>
 
   <footer class="border-t border-tinta/10">
-    <p class="mx-auto max-w-3xl px-4 py-4 text-sm text-tinta-2">Tus datos se protegen conforme a la Ley N.º 787 de Protección de Datos Personales. <a href="/privacidad.html" class="underline">Política de privacidad</a>.</p>
+    <p class="mx-auto max-w-3xl px-4 py-4 text-sm text-tinta-2">Tus datos se protegen conforme a la Ley N.º 787 de Protección de Datos Personales. <a href="/privacidad.html" class="underline">Política de privacidad</a>. <a href="/admin/login.html" class="underline">Acceso del personal</a>.</p>
   </footer>
 </body>
 </html>

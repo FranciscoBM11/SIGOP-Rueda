@@ -2,6 +2,7 @@
 
 // CitaPresentador: forma pública del comprobante. No incluye cédula, triaje
 // ni identificadores internos.
+const { transicionesPermitidas, motivoNoModificablePorPersonal } = require('./maquina-estados-cita');
 
 function presentarComprobante({ codigo, servicio, turno, correoEnviado }) {
   return {
@@ -33,4 +34,29 @@ function presentarCita(c) {
   };
 }
 
-module.exports = { presentarComprobante, presentarCita };
+/**
+ * Cita en la agenda del panel (CU-11). Incluye la cédula para identificar a
+ * la paciente en recepción, pero nunca respuestas del triaje (RN-16).
+ * `transiciones`: estados a los que el rol puede llevarla ahora (CU-12).
+ * `puedeReprogramar`: solo recepción, con la cita Confirmada y por venir (CU-13).
+ * `tieneTriaje`: solo se informa a la médica.
+ */
+function presentarItemAgenda(c, rol, ahora) {
+  const item = {
+    codigo: c.codigo,
+    estado: c.estado,
+    fecha: c.fecha,
+    horaInicio: c.horaInicio,
+    horaFin: c.horaFin,
+    paciente: c.nombres,
+    cedula: c.cedula,
+    servicioId: c.servicioId,
+    servicio: c.servicio,
+    transiciones: transicionesPermitidas(c, rol, ahora),
+    puedeReprogramar: rol === 'RECEPCIONISTA' && motivoNoModificablePorPersonal(c, ahora) === null,
+  };
+  if (rol === 'MEDICO') item.tieneTriaje = Boolean(c.tieneTriaje);
+  return item;
+}
+
+module.exports = { presentarComprobante, presentarCita, presentarItemAgenda };

@@ -52,6 +52,7 @@ npm run dev                 # servidor con recarga automática en http://localho
 | `npm run css` | Compila Tailwind: `public/css/tailwind.css` → `public/css/app.css`. |
 | `npm run css:watch` | Igual, recompilando al guardar. |
 | `npm run db:verificar` | Conecta a SQL Server y cuenta las filas de los datos de demostración. |
+| `npm run db:citas-demo` | Crea citas **ficticias** (cédulas `000-…`) para hoy (o el próximo día hábil) y el siguiente, con estados variados y triaje cifrado, para probar el panel en `/admin`. Si ya existen, no hace nada. Nunca en producción. |
 
 `public/css/app.css` es un archivo generado pero **se sube al repositorio**, para que Render solo tenga que ejecutar `npm install` y `npm start`. Después de cambiar clases en el HTML ejecuta `npm run css`.
 

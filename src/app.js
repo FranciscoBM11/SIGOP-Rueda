@@ -13,6 +13,9 @@ const { crearCalculadoraRoutes } = require('./modules/calculadora/calculadora.ro
 const { crearServiciosRoutes } = require('./modules/catalogo/servicios.routes');
 const { crearTurnosRoutes } = require('./modules/disponibilidad/turnos.routes');
 const { crearCitasRoutes } = require('./modules/citas/citas.routes');
+const { crearAuthRoutes } = require('./modules/auth/auth.routes');
+const { crearCitasAdminRoutes } = require('./modules/citas/citas-admin.routes');
+const { crearTriajeAdminRoutes } = require('./modules/triaje/triaje-admin.routes');
 
 const CARPETA_PUBLICA = path.resolve(__dirname, '..', 'public');
 
@@ -39,11 +42,17 @@ function crearApp({ servicios } = {}) {
   api.use(crearServiciosRoutes(dependencias));
   api.use(crearTurnosRoutes(dependencias));
   api.use(crearCitasRoutes(dependencias));
+  // Panel del personal (/admin, con sesión)
+  api.use(crearAuthRoutes(dependencias));
+  api.use(crearCitasAdminRoutes(dependencias));
+  api.use(crearTriajeAdminRoutes(dependencias));
   api.use(rutaNoEncontrada);
   app.use('/api/v1', api);
   app.use('/api', rutaNoEncontrada);
 
   // ---- Frontend --------------------------------------------------------------
+  // Entrada al panel: la agenda redirige al inicio de sesión si no hay sesión.
+  app.get(['/admin', '/admin/'], (req, res) => res.redirect('/admin/agenda.html'));
   app.use(express.static(CARPETA_PUBLICA, { extensions: ['html'] }));
 
   app.use(manejadorErrores);

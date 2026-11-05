@@ -4,7 +4,8 @@
 // servicio (RN-08) y guarda la ficha cifrada con AES-256-GCM (RN-14).
 const { ErrorNegocio } = require('../../common/errores');
 const { esFechaValida } = require('../../common/validadores');
-const { cifrar: cifrarPorDefecto } = require('../../common/cifrado');
+const { cifrar: cifrarPorDefecto, descifrarTexto: descifrarPorDefecto } = require('../../common/cifrado');
+const registro = require('../../common/registro');
 
 const MAX_LARGO = 500;
 const NUMERO = /^\d{1,6}([.,]\d{1,2})?$/;
@@ -75,8 +76,30 @@ function validarRespuestas(preguntas, respuestas = []) {
   return validas;
 }
 
-function crearTriajeService({ fichasRepo, preguntasService, cifrar = cifrarPorDefecto }) {
+function crearTriajeService({ fichasRepo, preguntasService, cifrar = cifrarPorDefecto, descifrar = descifrarPorDefecto }) {
   return {
+    /**
+     * CU-14 paso 3: la ficha de la cita con sus respuestas descifradas, en el
+     * orden del cuestionario. Solo se llama desde rutas con rol Médico (RN-16).
+     * Si una respuesta no se puede descifrar (clave cambiada o dato alterado)
+     * se devuelve con valor null en lugar de fallar toda la ficha.
+     * @returns {Promise<null | { fechaRegistro, respuestas: { pregunta, tipo, valor }[] }>}
+     */
+    async consultarFicha(citaId) {
+      const ficha = await fichasRepo.obtenerPorCita(citaId);
+      if (!ficha) return null;
+      const respuestas = ficha.respuestas.map((r) => {
+        let valor = null;
+        try {
+          valor = descifrar(r.valorCifrado);
+        } catch (err) {
+          registro.error('triaje_no_descifrado', { citaId, preguntaId: r.preguntaId, error: { nombre: err.name } });
+        }
+        return { pregunta: r.texto, tipo: r.tipo, valor };
+      });
+      return { fechaRegistro: ficha.fechaRegistro, respuestas };
+    },
+
     /** Obtiene el cuestionario del servicio y valida las respuestas (antes de la transacción). */
     async validar(servicioId, respuestas) {
       const preguntas = await preguntasService.listarPorServicio(servicioId);

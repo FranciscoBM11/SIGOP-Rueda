@@ -28,7 +28,7 @@ function armar({ cita = citaBd(), ...sobrescribir } = {}) {
   const d = {
     transaccion: jest.fn(async (fn) => fn(tx)),
     citasRepo: {
-      bloquearPorId: jest.fn().mockResolvedValue(cita),
+      bloquear: jest.fn().mockResolvedValue(cita),
       actualizarEstado: jest.fn(),
       cambiarTurno: jest.fn(),
     },
@@ -50,7 +50,7 @@ describe('CU-06 CitasService.cancelar', () => {
     const r = await citas.cancelar(7);
 
     expect(d.transaccion).toHaveBeenCalledTimes(1);
-    expect(d.citasRepo.bloquearPorId).toHaveBeenCalledWith(tx, 7);
+    expect(d.citasRepo.bloquear).toHaveBeenCalledWith(tx, { id: 7 });
     expect(d.citasRepo.actualizarEstado).toHaveBeenCalledWith(tx, 7, 'CANCELADA');
     expect(d.cambiosEstadoRepo.registrar).toHaveBeenCalledWith(tx, expect.objectContaining({
       citaId: 7,

@@ -17,7 +17,7 @@ El diseño está en `docs/`. **Lee solo la sección que necesites; no cargues to
 - Validación: `zod` + `src/common/validadores.js` (ER-01..ER-10).
 - Seguridad: `bcryptjs` (costo 12), `jsonwebtoken` en cookie HttpOnly, `helmet`, `express-rate-limit`, AES-256-GCM con `node:crypto`.
 - Correo: Nodemailer (interfaz `CanalNotificacion`). PDF: `multer` en memoria, guardados cifrados en `VARBINARY(MAX)`.
-- Frontend: HTML5 + Tailwind CSS (CSS compilado) + JavaScript en módulos ES + FullCalendar (solo agenda). Sin framework ni empaquetador.
+- Frontend: HTML5 + Tailwind CSS (CSS compilado) + JavaScript en módulos ES. Sin framework ni empaquetador. La agenda del panel es una tabla del día (tarjetas en el teléfono), sin FullCalendar.
 - Pruebas: Jest + Supertest. Publicación: Render + Azure SQL + UptimeRobot (ver sección 7 de la Fase 3).
 
 ## Estructura
@@ -43,6 +43,7 @@ Un solo proyecto: `src/` (server.js, app.js, config/, common/, modules/*), `publ
 - Triaje y PDF cifrados con AES-256-GCM; la clave vive en variable de entorno, nunca en el repositorio.
 - Límite de intentos en el acceso público (5 en 15 min por cédula; 20 peticiones/min por IP).
 - Sin datos personales en logs ni URL; IP guardadas como hash. La recepción no ve el triaje.
+- Sin autocompletado del navegador (dispositivos compartidos en la feria): todo `<form>` lleva `autocomplete="off"`, igual que cada campo de datos personales o de salud (también los creados con JS); en el login, usuario `autocomplete="off"` y contraseña `autocomplete="new-password"`. Aplica a toda página nueva.
 - **En desarrollo, pruebas y demos usa solo datos de `02_datos_demo.sql`. Nunca datos reales.**
 - Usuarios de demo: `dra.rueda` / `Clinica2026` (médica), `recepcion.lira` / `Recepcion2026` (recepción).
 

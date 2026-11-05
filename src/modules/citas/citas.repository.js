@@ -6,10 +6,18 @@ const { sql } = require('../../config/base-datos');
 // Cita con su servicio, turno y paciente. Fechas y horas como texto ('AAAA-MM-DD', 'HH:MM').
 const SELECT_CITA = `SELECT c.id, c.codigo, c.estado, c.turno_id, c.servicio_id,
        s.nombre AS servicio, s.indicaciones_previas AS indicaciones,
-       p.nombres, p.correo,
+       p.nombres, p.correo, p.cedula,
        CONVERT(char(10), t.fecha, 23)       AS fecha,
        CONVERT(char(5), t.hora_inicio, 108) AS hora_inicio,
-       CONVERT(char(5), t.hora_fin, 108)    AS hora_fin`;
+       CONVERT(char(5), t.hora_fin, 108)    AS hora_fin,
+       CASE WHEN EXISTS (SELECT 1 FROM dbo.fichas_triaje f WHERE f.cita_id = c.id) THEN 1 ELSE 0 END AS tiene_triaje`;
+
+const FROM_CITA = `FROM dbo.citas c
+             JOIN dbo.pacientes p ON p.id = c.paciente_id
+             JOIN dbo.servicios s ON s.id = c.servicio_id
+             JOIN dbo.turnos t    ON t.id = c.turno_id`;
+
+const aFechaSql = (iso) => new Date(`${iso}T00:00:00Z`);
 
 function mapearCita(f) {
   if (!f) return null;
@@ -23,9 +31,11 @@ function mapearCita(f) {
     indicaciones: f.indicaciones,
     nombres: f.nombres,
     correo: f.correo,
+    cedula: f.cedula,
     fecha: f.fecha,
     horaInicio: f.hora_inicio,
     horaFin: f.hora_fin,
+    tieneTriaje: Boolean(f.tiene_triaje),
   };
 }
 
@@ -49,20 +59,58 @@ function crearCitasRepository({ obtenerPool } = {}) {
       return mapearCita(r.recordset[0]);
     },
 
-    /** Lee la cita dentro de la transacción y bloquea su fila hasta el commit. */
-    async bloquearPorId(tx, id) {
-      const r = await tx
-        .request()
-        .input('id', sql.Int, id)
-        .query(
-          `${SELECT_CITA}
-             FROM dbo.citas c WITH (UPDLOCK, HOLDLOCK)
-             JOIN dbo.pacientes p ON p.id = c.paciente_id
-             JOIN dbo.servicios s ON s.id = c.servicio_id
-             JOIN dbo.turnos t    ON t.id = c.turno_id
-            WHERE c.id = @id`,
-        );
+    /**
+     * Lee la cita dentro de la transacción y bloquea su fila hasta el commit.
+     * Se busca por id (token de cita) o por código (panel del personal).
+     * @param {{ id?: number, codigo?: string }} clave
+     */
+    async bloquear(tx, clave) {
+      const { id, codigo } = clave;
+      const peticion = tx.request();
+      let filtro;
+      if (id != null) {
+        peticion.input('id', sql.Int, id);
+        filtro = 'c.id = @id';
+      } else {
+        peticion.input('codigo', sql.Char(8), codigo);
+        filtro = 'c.codigo = @codigo';
+      }
+      const r = await peticion.query(
+        `${SELECT_CITA}
+           FROM dbo.citas c WITH (UPDLOCK, HOLDLOCK)
+           JOIN dbo.pacientes p ON p.id = c.paciente_id
+           JOIN dbo.servicios s ON s.id = c.servicio_id
+           JOIN dbo.turnos t    ON t.id = c.turno_id
+          WHERE ${filtro}`,
+      );
       return mapearCita(r.recordset[0]);
+    },
+
+    /** La cita por su código, sin bloquear (panel del personal), o null. */
+    async buscarPorCodigo(codigo) {
+      const pool = await obtenerPool();
+      const r = await pool
+        .request()
+        .input('codigo', sql.Char(8), codigo)
+        .query(`${SELECT_CITA} ${FROM_CITA} WHERE c.codigo = @codigo`);
+      return mapearCita(r.recordset[0]);
+    },
+
+    /**
+     * CU-11: citas de una fecha (incluidas las canceladas), ordenadas por hora.
+     * Nunca incluye respuestas del triaje (RN-16).
+     */
+    async listarAgenda(fecha) {
+      const pool = await obtenerPool();
+      const r = await pool
+        .request()
+        .input('fecha', sql.Date, aFechaSql(fecha))
+        .query(
+          `${SELECT_CITA} ${FROM_CITA}
+            WHERE t.fecha = @fecha
+            ORDER BY t.hora_inicio, CASE WHEN c.estado = 'CANCELADA' THEN 1 ELSE 0 END, c.codigo`,
+        );
+      return r.recordset.map(mapearCita);
     },
 
     async actualizarEstado(tx, id, estado) {

@@ -30,6 +30,10 @@ const { crearIntentosRepository } = require('./seguridad/intentos.repository');
 const { crearAccesoPublicoService } = require('./seguridad/acceso-publico.service');
 const { crearTokenCita } = require('./seguridad/token-cita');
 const { crearHashIp } = require('./seguridad/hash-ip');
+const { crearUsuariosRepository } = require('./auth/usuarios.repository');
+const { crearSesionesRepository } = require('./auth/sesiones.repository');
+const { crearTokenSesion } = require('./auth/token-sesion');
+const { crearAuthService } = require('./auth/auth.service');
 
 function crearCanalCorreo() {
   const { smtp } = obtenerConfig();
@@ -45,7 +49,7 @@ function crearDependencias() {
   const calculadoraService = crearCalculadoraService({ estudiosRepo: crearEstudiosRepository(bd) });
   const turnosService = crearTurnosService({ turnosRepo: crearTurnosRepository(bd), serviciosService });
   const pacientesService = crearPacientesService({ pacientesRepo: crearPacientesRepository() });
-  const triajeService = crearTriajeService({ fichasRepo: crearFichasRepository(), preguntasService });
+  const triajeService = crearTriajeService({ fichasRepo: crearFichasRepository(bd), preguntasService });
   const notificacionesService = crearNotificacionesService({
     notificacionesRepo: crearNotificacionesRepository(bd),
     canal: crearCanalCorreo(),
@@ -62,12 +66,20 @@ function crearDependencias() {
     notificacionesService,
   });
 
+  const hashIp = crearHashIp(secretoSesion);
   const tokenCita = crearTokenCita({ secreto: secretoSesion });
   const accesoPublicoService = crearAccesoPublicoService({
     intentosRepo: crearIntentosRepository(bd),
     citasRepo,
     tokenCita,
-    hashIp: crearHashIp(secretoSesion),
+    hashIp,
+  });
+
+  const authService = crearAuthService({
+    usuariosRepo: crearUsuariosRepository(bd),
+    sesionesRepo: crearSesionesRepository(bd),
+    tokenSesion: crearTokenSesion({ secreto: secretoSesion }),
+    hashIp,
   });
 
   return {
@@ -78,6 +90,8 @@ function crearDependencias() {
     citasService,
     accesoPublicoService,
     tokenCita,
+    triajeService,
+    authService,
   };
 }
 
