@@ -65,6 +65,18 @@ function insignia(estadoCita) {
   return el('span', { class: `inline-flex whitespace-nowrap rounded-full border px-3 py-1 text-sm font-bold ${e.clase}` }, e.texto);
 }
 
+// CU-16 E2: la médica cambió su horario y esta cita quedó fuera; recepción la reprograma.
+function insignias(c) {
+  return el(
+    'span',
+    { class: 'inline-flex flex-wrap gap-1' },
+    insignia(c.estado),
+    c.fueraDeHorario
+      ? el('span', { class: 'inline-flex whitespace-nowrap rounded-full border border-error/30 bg-error/10 px-3 py-1 text-sm font-bold text-error' }, 'Fuera de horario')
+      : null,
+  );
+}
+
 function fechaHora(c) {
   const dia = c.fecha === estado.hoy ? 'hoy' : formatearFecha(c.fecha, 'dia').toLowerCase();
   return `${dia} a las ${c.horaInicio}`;
@@ -185,7 +197,7 @@ function fila(c) {
     el('td', { class: 'px-4 py-4 align-top' }, el('span', { class: 'block break-words' }, c.paciente), el('span', { class: 'block text-sm text-tinta-2' }, c.cedula)),
     el('td', { class: 'px-4 py-4 align-top' }, c.servicio),
     el('td', { class: 'px-4 py-4 align-top whitespace-nowrap' }, c.codigo),
-    el('td', { class: 'px-4 py-4 align-top' }, insignia(c.estado)),
+    el('td', { class: 'px-4 py-4 align-top' }, insignias(c)),
     el('td', { class: 'px-4 py-4 align-top' }, el('div', { class: 'flex flex-wrap items-center gap-2' }, acciones(c))),
   );
 }
@@ -208,7 +220,7 @@ function tarjeta(c) {
         el('p', { class: 'text-sm text-tinta-2' }, c.cedula),
       ),
     ),
-    el('div', { class: 'mt-3 flex flex-wrap items-center justify-between gap-2' }, insignia(c.estado), botones.length ? el('div', { class: 'flex flex-wrap gap-2' }, botones) : null),
+    el('div', { class: 'mt-3 flex flex-wrap items-center justify-between gap-2' }, insignias(c), botones.length ? el('div', { class: 'flex flex-wrap gap-2' }, botones) : null),
   );
 }
 

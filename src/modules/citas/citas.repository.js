@@ -10,6 +10,7 @@ const SELECT_CITA = `SELECT c.id, c.codigo, c.estado, c.turno_id, c.servicio_id,
        CONVERT(char(10), t.fecha, 23)       AS fecha,
        CONVERT(char(5), t.hora_inicio, 108) AS hora_inicio,
        CONVERT(char(5), t.hora_fin, 108)    AS hora_fin,
+       t.habilitado AS turno_habilitado,
        CASE WHEN EXISTS (SELECT 1 FROM dbo.fichas_triaje f WHERE f.cita_id = c.id) THEN 1 ELSE 0 END AS tiene_triaje`;
 
 const FROM_CITA = `FROM dbo.citas c
@@ -36,6 +37,8 @@ function mapearCita(f) {
     horaInicio: f.hora_inicio,
     horaFin: f.hora_fin,
     tieneTriaje: Boolean(f.tiene_triaje),
+    // CU-16 E2: el turno quedó fuera del horario vigente de la médica.
+    fueraDeHorario: f.turno_habilitado === false || f.turno_habilitado === 0,
   };
 }
 

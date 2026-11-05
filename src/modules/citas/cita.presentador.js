@@ -55,6 +55,8 @@ function presentarItemAgenda(c, rol, ahora) {
     transiciones: transicionesPermitidas(c, rol, ahora),
     puedeReprogramar: rol === 'RECEPCIONISTA' && motivoNoModificablePorPersonal(c, ahora) === null,
   };
+  // CU-16 E2: solo se agrega cuando aplica, para que recepción la reprograme.
+  if (c.fueraDeHorario && c.estado !== 'CANCELADA') item.fueraDeHorario = true;
   if (rol === 'MEDICO') item.tieneTriaje = Boolean(c.tieneTriaje);
   return item;
 }

@@ -11,7 +11,7 @@ describe('Expresiones regulares ER-01 a ER-10 (Fase 2, Tabla 34)', () => {
     ['CODIGO_CITA (ER-05)', ER.CODIGO_CITA, ['CR-04821', 'CR-00000'], ['CR-4821', 'cr-04821', 'CR-048210', 'XX-04821']],
     ['USUARIO (ER-06)', ER.USUARIO, ['recepcion.lira', 'dra_rueda'], ['abc', 'Dra.Rueda', 'a'.repeat(31)]],
     ['CONTRASENA (ER-07)', ER.CONTRASENA, ['Clinica2026'], ['clinica2026', 'CLINICA2026', 'Clinicaaa', 'Cl1']],
-    ['NOMBRE_ARCHIVO (ER-08)', ER.NOMBRE_ARCHIVO, ['eco_pelvica_CR04821.pdf', 'informe.PDF'], ['informe.exe', 'informe.pdf.exe', '.pdf']],
+    ['NOMBRE_ARCHIVO (ER-08)', ER.NOMBRE_ARCHIVO, ['eco_pelvica_CR04821.pdf', 'eco_pelvica_CR-04821.pdf', 'informe.PDF'], ['informe.exe', 'informe.pdf.exe', '.pdf']],
     ['FECHA (ER-09)', ER.FECHA, ['2026-11-20'], ['2026-13-01', '2026-1-01', '20-11-2026']],
     ['HORA (ER-10)', ER.HORA, ['14:30', '00:00', '23:59'], ['24:00', '9:30', '12:60']],
   ];

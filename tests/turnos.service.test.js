@@ -19,6 +19,7 @@ describe('TurnosService.consultar', () => {
   test('genera los turnos del rango, descarta los pasados y marca los ocupados (RN-01)', async () => {
     const repo = {
       generar: jest.fn(),
+      fechasConTurnos: jest.fn().mockResolvedValue(new Set()),
       listar: jest.fn().mockResolvedValue([
         fila(1, '2026-11-09', '08:00'),
         fila(2, '2026-11-09', '10:15'), // empieza ahora: ya no se ofrece
@@ -35,7 +36,7 @@ describe('TurnosService.consultar', () => {
   });
 
   test('si la generación falla, igual lista los turnos existentes', async () => {
-    const repo = { generar: jest.fn().mockRejectedValue(new Error('permiso denegado')), listar: jest.fn().mockResolvedValue([]) };
+    const repo = { generar: jest.fn().mockRejectedValue(new Error('permiso denegado')), fechasConTurnos: jest.fn().mockResolvedValue(new Set()), listar: jest.fn().mockResolvedValue([]) };
     await expect(crear(repo).consultar({ servicioId: 1, desde: '2026-11-10', hasta: '2026-11-12' })).resolves.toEqual([]);
     expect(repo.listar).toHaveBeenCalled();
   });

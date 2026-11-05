@@ -1,0 +1,110 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="robots" content="noindex">
+  <title>Subir informe — Panel Clínica Rueda</title>
+  <link rel="stylesheet" href="/css/app.css">
+  <script type="module" src="/js/admin-informes.js"></script>
+</head>
+<!-- Oculto hasta comprobar la sesión (admin-comun.js). -->
+<body class="min-h-screen lg:flex" hidden>
+  <a href="#contenido" class="sr-only focus:not-sr-only focus:absolute focus:left-4 focus:top-4 focus:z-10 focus:rounded focus:bg-white focus:px-4 focus:py-2">Saltar al contenido</a>
+
+  <!-- Barra superior en móvil (Figura 22) -->
+  <header class="flex items-center justify-between gap-3 bg-tinta px-4 py-3 text-white lg:hidden">
+    <div class="flex items-center gap-3">
+      <span class="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-baya" aria-hidden="true"><span class="h-3 w-3 rounded-full bg-sol"></span></span>
+      <span>
+        <span class="block font-titulo text-lg font-bold">Clínica Rueda</span>
+        <span class="block text-sm text-white/80">Panel</span>
+      </span>
+    </div>
+    <button type="button" id="abrir-menu" aria-expanded="false" aria-controls="menu-panel"
+            class="min-h-11 rounded-lg border border-white/40 px-4 font-bold hover:bg-white/10">Menú</button>
+  </header>
+
+  <!-- Menú lateral (escritorio) / desplegable (móvil) -->
+  <aside id="menu-panel" class="hidden bg-tinta text-white lg:sticky lg:top-0 lg:flex lg:h-screen lg:w-72 lg:shrink-0 lg:flex-col">
+    <div class="hidden items-center gap-3 px-6 pt-8 lg:flex">
+      <span class="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-baya" aria-hidden="true"><span class="h-3 w-3 rounded-full bg-sol"></span></span>
+      <span>
+        <span class="block font-titulo text-xl font-bold">Clínica Rueda</span>
+        <span class="block text-sm text-white/80">Panel</span>
+      </span>
+    </div>
+    <nav class="grid gap-1 px-4 py-4 lg:mt-6" aria-label="Panel">
+      <a href="/admin/agenda.html"
+         class="flex min-h-11 items-center rounded-lg border-l-4 border-transparent px-4 font-bold hover:bg-white/10">Agenda del día</a>
+      <a href="/admin/informes.html" data-solo-rol="RECEPCIONISTA" hidden aria-current="page"
+         class="flex min-h-11 items-center rounded-lg border-l-4 border-sol bg-white/10 px-4 font-bold">Subir informe</a>
+      <a href="/admin/disponibilidad.html" data-solo-rol="MEDICO" hidden
+         class="flex min-h-11 items-center rounded-lg border-l-4 border-transparent px-4 font-bold hover:bg-white/10">Disponibilidad</a>
+    </nav>
+    <div class="mt-auto border-t border-white/15 px-6 py-5">
+      <p class="font-bold" data-usuario-nombre></p>
+      <p class="text-sm text-white/80" data-usuario-rol></p>
+      <button type="button" data-cerrar-sesion class="mt-2 min-h-11 font-bold text-sol underline disabled:opacity-60">Cerrar sesión</button>
+    </div>
+  </aside>
+
+  <main id="contenido" class="min-w-0 flex-1 px-4 py-6 sm:px-6 lg:px-10 lg:py-8">
+    <!-- A4 Subir informe de resultados (CU-15, Figura 26) -->
+    <h1 id="titulo" class="font-titulo text-2xl font-bold sm:text-3xl" tabindex="-1">Subir informe de resultados</h1>
+    <p class="mt-1 text-tinta-2">El informe queda disponible para la paciente apenas lo subas.</p>
+
+    <div class="mt-6 max-w-3xl rounded-xl bg-white p-5 shadow-sm sm:p-8">
+      <!-- Pasos 1-2: buscar a la paciente por cédula -->
+      <form id="form-busqueda" class="grid gap-2" autocomplete="off" novalidate>
+        <label for="cedula" class="block font-bold">Cédula de la paciente</label>
+        <div class="flex flex-col gap-3 sm:flex-row">
+          <input id="cedula" name="cedula" autocomplete="off" maxlength="16" placeholder="001-150390-0012K"
+                 aria-describedby="cedula-error" class="block min-h-11 w-full min-w-0 flex-1 rounded-lg border border-tinta/30 bg-white px-3 uppercase">
+          <button type="submit" id="buscar" class="min-h-11 rounded-lg border border-tinta/20 bg-white px-5 font-bold hover:bg-bruma disabled:opacity-60">Buscar</button>
+        </div>
+        <p id="cedula-error" class="text-sm text-error" hidden></p>
+      </form>
+
+      <p id="aviso" role="alert" class="mt-4 rounded-lg border border-error bg-white p-3 text-error" hidden></p>
+      <p id="aviso-ok" role="status" class="mt-4 rounded-lg border border-salvia/40 bg-salvia/10 p-3 text-salvia" hidden></p>
+
+      <!-- Pasos 3-6: elegir la cita y el PDF -->
+      <form id="form-informe" class="mt-6 grid gap-5" autocomplete="off" novalidate hidden>
+        <fieldset>
+          <legend id="titulo-citas" class="font-titulo text-xl font-bold" tabindex="-1"></legend>
+          <p class="mt-1 text-sm text-tinta-2">Solo se suben informes a citas de hoy o anteriores que no estén canceladas ni marcadas como «No asistió».</p>
+          <div id="lista-citas" class="mt-3 grid gap-3"></div>
+          <p id="cita-error" class="mt-1 text-sm text-error" hidden></p>
+        </fieldset>
+
+        <div id="zona-archivo" class="rounded-xl border-2 border-dashed border-tinta/25 bg-bruma/60 p-5 text-center sm:p-8">
+          <p class="font-bold">
+            <span class="hidden sm:inline">Arrastra el PDF aquí o </span>
+            <label for="archivo" class="inline-flex min-h-11 cursor-pointer items-center rounded-lg border border-tinta/20 bg-white px-4 font-bold hover:bg-bruma">elige un archivo</label>
+          </p>
+          <input id="archivo" name="archivo" type="file" accept="application/pdf,.pdf" autocomplete="off" class="sr-only" aria-describedby="archivo-ayuda archivo-error">
+          <p id="archivo-ayuda" class="mt-2 text-sm text-tinta-2">Solo archivos PDF de hasta 10 MB.</p>
+          <p id="archivo-error" class="mt-2 text-sm text-error" hidden></p>
+
+          <div id="archivo-elegido" class="mt-4 flex items-center gap-3 rounded-lg border border-tinta/10 bg-white p-3 text-left" hidden>
+            <span class="flex h-12 w-11 shrink-0 items-center justify-center rounded bg-error text-sm font-bold text-white" aria-hidden="true">PDF</span>
+            <span class="min-w-0 flex-1">
+              <span id="archivo-nombre" class="block font-bold break-all"></span>
+              <span id="archivo-tamano" class="block text-sm text-tinta-2"></span>
+            </span>
+            <button type="button" id="quitar-archivo" class="min-h-11 rounded-lg border border-tinta/20 bg-white px-4 font-bold hover:bg-bruma">Quitar</button>
+          </div>
+        </div>
+
+        <div class="flex flex-col-reverse gap-3 sm:flex-row sm:justify-end">
+          <button type="button" id="cancelar" class="min-h-11 rounded-lg border border-tinta/20 bg-white px-5 font-bold hover:bg-bruma">Cancelar</button>
+          <button type="submit" id="subir" class="min-h-11 rounded-lg bg-baya px-5 font-bold text-white hover:bg-baya/90 disabled:opacity-60">Subir informe</button>
+        </div>
+      </form>
+    </div>
+
+    <a href="/admin/agenda.html" class="mt-6 inline-flex min-h-11 items-center font-bold text-baya underline">← Volver a la agenda</a>
+  </main>
+</body>
+</html>

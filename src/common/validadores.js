@@ -12,7 +12,7 @@ const ER = Object.freeze({
   CODIGO_CITA: /^CR-\d{5}$/, // ER-05
   USUARIO: /^[a-z0-9._]{4,30}$/, // ER-06
   CONTRASENA: /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d).{8,64}$/, // ER-07
-  NOMBRE_ARCHIVO: /^[\w. ]{1,96}\.[pP][dD][fF]$/, // ER-08
+  NOMBRE_ARCHIVO: /^[\w. -]{1,96}\.[pP][dD][fF]$/, // ER-08 (la Fase 3 admite además el guion)
   FECHA: /^\d{4}-(0[1-9]|1[0-2])-(0[1-9]|[12]\d|3[01])$/, // ER-09
   HORA: /^([01]\d|2[0-3]):[0-5]\d$/, // ER-10
 });

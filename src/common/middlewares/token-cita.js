@@ -7,8 +7,13 @@ const { ErrorNegocio } = require('../errores');
 
 const PATRON_BEARER = /^Bearer ([A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+)$/;
 
-/** @param {{ verificar(token: string): { citaId: number, codigo: string } }} tokenCita */
-function requiereTokenCita(tokenCita) {
+/**
+ * @param {{ verificar(token: string): { citaId: number, codigo: string } }} tokenCita
+ * @param {{ porCodigo?: boolean }} [opciones] porCodigo = false en rutas sin :codigo
+ *        (p. ej. /resultados/:id/archivo); ahí el servicio comprueba que el
+ *        recurso pertenezca a req.tokenCita.citaId.
+ */
+function requiereTokenCita(tokenCita, { porCodigo = true } = {}) {
   return (req, res, next) => {
     const cabecera = req.get('authorization') ?? '';
     const coincidencia = PATRON_BEARER.exec(cabecera);
@@ -22,6 +27,10 @@ function requiereTokenCita(tokenCita) {
       datos = tokenCita.verificar(coincidencia[1]);
     } catch (err) {
       return next(err);
+    }
+    if (!porCodigo) {
+      req.tokenCita = datos;
+      return next();
     }
     const codigoRuta = String(req.params.codigo ?? '').trim().toUpperCase();
     if (codigoRuta !== datos.codigo) {

@@ -139,3 +139,40 @@ describe('hash de IP', () => {
     expect(h(undefined)).toBeNull();
   });
 });
+
+describe('verificarCedulaYCodigo (CU-08 para Resultados, CU-09)', () => {
+  test('devuelve la cita aunque ya no sea modificable (Atendida o pasada) y registra el éxito', async () => {
+    const { servicio, intentosRepo } = armar({ cita: citaBd({ estado: 'ATENDIDA', fecha: '2026-10-28' }) });
+    await expect(servicio.verificarCedulaYCodigo(entrada)).resolves.toMatchObject({ id: 7, estado: 'ATENDIDA' });
+    expect(intentosRepo.registrar).toHaveBeenCalledWith(expect.objectContaining({ cedula: CEDULA, exitoso: true }));
+  });
+
+  test('RN-15: comparte el contador con «Mi cita»; con 5 fallidos recientes bloquea', async () => {
+    const { servicio, citasRepo } = armar({ recientes: fallidos(600, 500, 400, 300, 200) });
+    await expect(servicio.verificarCedulaYCodigo(entrada)).rejects.toMatchObject({ codigo: 'ACCESO_BLOQUEADO', http: 429 });
+    expect(citasRepo.buscarPorCedulaYCodigo).not.toHaveBeenCalled();
+  });
+
+  test('sin coincidencia → 401 genérico y registra el fallido', async () => {
+    const { servicio, intentosRepo } = armar({ cita: null });
+    await expect(servicio.verificarCedulaYCodigo(entrada)).rejects.toMatchObject({ codigo: 'ACCESO_DENEGADO', http: 401 });
+    expect(intentosRepo.registrar).toHaveBeenCalledWith(expect.objectContaining({ exitoso: false }));
+  });
+
+  test('emitirToken firma un token de esa cita', () => {
+    const { servicio, tokenCita } = armar();
+    expect(tokenCita.verificar(servicio.emitirToken(citaBd()))).toEqual({ citaId: 7, codigo: CODIGO });
+  });
+});
+
+describe('RN-15: minutos de espera del aviso de bloqueo', () => {
+  test('nunca pasa de 15 aunque SQL Server redondee la hora del intento (901 s)', async () => {
+    const { servicio } = armar({ recientes: fallidos(904, 903, 903, 902, 901) });
+    await expect(servicio.validarAccesoCita(entrada)).rejects.toMatchObject({ message: expect.stringContaining('en 15 minutos.') });
+  });
+
+  test('al menos 1 minuto cuando falta muy poco', async () => {
+    const { servicio } = armar({ recientes: fallidos(20, 10, 5, 3, 1) });
+    await expect(servicio.validarAccesoCita(entrada)).rejects.toMatchObject({ message: expect.stringContaining('en 1 minuto.') });
+  });
+});

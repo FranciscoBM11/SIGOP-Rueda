@@ -1,0 +1,85 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="robots" content="noindex">
+  <title>Disponibilidad — Panel Clínica Rueda</title>
+  <link rel="stylesheet" href="/css/app.css">
+  <script type="module" src="/js/admin-disponibilidad.js"></script>
+</head>
+<!-- Oculto hasta comprobar la sesión (admin-comun.js). -->
+<body class="min-h-screen lg:flex" hidden>
+  <a href="#contenido" class="sr-only focus:not-sr-only focus:absolute focus:left-4 focus:top-4 focus:z-10 focus:rounded focus:bg-white focus:px-4 focus:py-2">Saltar al contenido</a>
+
+  <!-- Barra superior en móvil (Figura 22) -->
+  <header class="flex items-center justify-between gap-3 bg-tinta px-4 py-3 text-white lg:hidden">
+    <div class="flex items-center gap-3">
+      <span class="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-baya" aria-hidden="true"><span class="h-3 w-3 rounded-full bg-sol"></span></span>
+      <span>
+        <span class="block font-titulo text-lg font-bold">Clínica Rueda</span>
+        <span class="block text-sm text-white/80">Panel</span>
+      </span>
+    </div>
+    <button type="button" id="abrir-menu" aria-expanded="false" aria-controls="menu-panel"
+            class="min-h-11 rounded-lg border border-white/40 px-4 font-bold hover:bg-white/10">Menú</button>
+  </header>
+
+  <!-- Menú lateral (escritorio) / desplegable (móvil) -->
+  <aside id="menu-panel" class="hidden bg-tinta text-white lg:sticky lg:top-0 lg:flex lg:h-screen lg:w-72 lg:shrink-0 lg:flex-col">
+    <div class="hidden items-center gap-3 px-6 pt-8 lg:flex">
+      <span class="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-baya" aria-hidden="true"><span class="h-3 w-3 rounded-full bg-sol"></span></span>
+      <span>
+        <span class="block font-titulo text-xl font-bold">Clínica Rueda</span>
+        <span class="block text-sm text-white/80">Panel</span>
+      </span>
+    </div>
+    <nav class="grid gap-1 px-4 py-4 lg:mt-6" aria-label="Panel">
+      <a href="/admin/agenda.html"
+         class="flex min-h-11 items-center rounded-lg border-l-4 border-transparent px-4 font-bold hover:bg-white/10">Agenda del día</a>
+      <a href="/admin/informes.html" data-solo-rol="RECEPCIONISTA" hidden
+         class="flex min-h-11 items-center rounded-lg border-l-4 border-transparent px-4 font-bold hover:bg-white/10">Subir informe</a>
+      <a href="/admin/disponibilidad.html" data-solo-rol="MEDICO" hidden aria-current="page"
+         class="flex min-h-11 items-center rounded-lg border-l-4 border-sol bg-white/10 px-4 font-bold">Disponibilidad</a>
+    </nav>
+    <div class="mt-auto border-t border-white/15 px-6 py-5">
+      <p class="font-bold" data-usuario-nombre></p>
+      <p class="text-sm text-white/80" data-usuario-rol></p>
+      <button type="button" data-cerrar-sesion class="mt-2 min-h-11 font-bold text-sol underline disabled:opacity-60">Cerrar sesión</button>
+    </div>
+  </aside>
+
+  <main id="contenido" class="min-w-0 flex-1 px-4 py-6 sm:px-6 lg:px-10 lg:py-8">
+    <!-- A5 Disponibilidad (CU-16, Figura 27) -->
+    <h1 id="titulo" class="font-titulo text-2xl font-bold sm:text-3xl" tabindex="-1">Disponibilidad</h1>
+    <p class="mt-1 text-tinta-2">Los cambios se aplican a los turnos desde mañana; los de hoy no cambian. Las citas ya agendadas se conservan.</p>
+
+    <p id="aviso" role="alert" class="mt-4 max-w-4xl rounded-lg border border-error bg-white p-3 text-error" hidden></p>
+    <p id="aviso-ok" role="status" class="mt-4 max-w-4xl rounded-lg border border-salvia/40 bg-salvia/10 p-3 text-salvia" hidden></p>
+
+    <form id="form-horarios" class="mt-6 max-w-4xl" autocomplete="off" novalidate>
+      <div class="overflow-hidden rounded-xl bg-white shadow-sm">
+        <!-- Encabezado (solo escritorio); en el teléfono cada día es una tarjeta -->
+        <div class="hidden grid-cols-[8rem_5.5rem_1fr_1fr_10rem] gap-4 border-b border-tinta/10 bg-bruma/60 px-5 py-3 text-sm font-bold text-tinta-2 md:grid" aria-hidden="true">
+          <span>Día</span><span>Atiende</span><span>Apertura</span><span>Cierre</span><span>Duración del turno</span>
+        </div>
+        <div id="dias" class="divide-y divide-tinta/10"></div>
+      </div>
+      <p id="horarios-error" class="mt-2 text-sm text-error" hidden></p>
+
+      <div id="fuera-horario" class="mt-5 rounded-lg border border-sol bg-sol/15 p-4" role="status" hidden>
+        <p id="fuera-titulo" class="font-bold"></p>
+        <p class="mt-1 text-tinta-2">Se conservan y recepción puede reprogramarlas desde la agenda.</p>
+        <ul id="fuera-lista" class="mt-2 grid gap-1"></ul>
+      </div>
+
+      <div class="mt-5 flex flex-col-reverse gap-3 sm:flex-row sm:justify-end">
+        <button type="button" id="descartar" class="min-h-11 rounded-lg border border-tinta/20 bg-white px-5 font-bold hover:bg-bruma disabled:opacity-60">Descartar cambios</button>
+        <button type="submit" id="guardar" class="min-h-11 rounded-lg bg-baya px-5 font-bold text-white hover:bg-baya/90 disabled:opacity-60">Guardar horario</button>
+      </div>
+    </form>
+
+    <a href="/admin/agenda.html" class="mt-6 inline-flex min-h-11 items-center font-bold text-baya underline">← Volver a la agenda</a>
+  </main>
+</body>
+</html>

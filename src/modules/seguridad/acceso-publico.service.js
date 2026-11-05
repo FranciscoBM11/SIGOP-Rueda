@@ -12,7 +12,10 @@ const MAX_FALLIDOS = 5;
 const VENTANA_MINUTOS = 15;
 
 function errorBloqueado(segundosRestantes) {
-  const minutos = Math.max(1, Math.ceil(segundosRestantes / 60));
+  // fecha_hora es DATETIME2(0) y SQL Server redondea al segundo: un intento
+  // recién guardado puede quedar hasta 0,5 s «en el futuro» y dar 901 s. El
+  // aviso nunca pasa de la ventana de 15 minutos.
+  const minutos = Math.min(VENTANA_MINUTOS, Math.max(1, Math.ceil(segundosRestantes / 60)));
   return new ErrorNegocio(
     'ACCESO_BLOQUEADO',
     `Por tu seguridad bloqueamos el acceso con esta cédula después de ${MAX_FALLIDOS} intentos fallidos. ` +
@@ -31,36 +34,55 @@ function errorNoCoincide() {
 }
 
 function crearAccesoPublicoService({ intentosRepo, citasRepo, tokenCita, hashIp, reloj = ahoraManagua }) {
+  /**
+   * CU-08 común a «Mi cita» (CU-06/07) y «Resultados» (CU-09): comprueba el
+   * bloqueo, busca la cita y registra el intento. Ambos accesos comparten el
+   * mismo contador por cédula (RN-15).
+   * @returns {Promise<object>} la cita (fila del repositorio)
+   */
+  async function verificarCedulaYCodigo({ cedula, codigo, ip }) {
+    // Pasos 3-4 y E3: con 5 fallidos consecutivos en 15 minutos, ni se busca la cita.
+    const recientes = await intentosRepo.fallidosRecientes(cedula, {
+      ventanaMinutos: VENTANA_MINUTOS,
+      limite: MAX_FALLIDOS,
+    });
+    if (recientes.length >= MAX_FALLIDOS) {
+      // Se desbloquea cuando el 5.º fallido más reciente sale de la ventana.
+      throw errorBloqueado(recientes[MAX_FALLIDOS - 1].segundosRestantes);
+    }
+
+    const cita = await citasRepo.buscarPorCedulaYCodigo(cedula, codigo);
+    const ipHash = hashIp(ip);
+
+    if (!cita) {
+      await intentosRepo.registrar({ cedula, exitoso: false, ipHash });
+      // El fallido que acaba de registrarse completa los 5: se avisa del bloqueo ya.
+      if (recientes.length + 1 >= MAX_FALLIDOS) {
+        throw errorBloqueado(recientes[MAX_FALLIDOS - 2].segundosRestantes);
+      }
+      throw errorNoCoincide();
+    }
+
+    // Paso 5: ambos datos coinciden; el éxito reinicia el conteo de fallidos.
+    await intentosRepo.registrar({ cedula, exitoso: true, ipHash });
+    return cita;
+  }
+
+  /** Token de cita para esa cita (CU-08 paso 5). */
+  function emitirToken(cita) {
+    return tokenCita.firmar({ citaId: cita.id, codigo: cita.codigo });
+  }
+
   return {
+    verificarCedulaYCodigo,
+    emitirToken,
+
     /**
      * @param {{ cedula: string, codigo: string, ip?: string }} datos ya normalizados (mayúsculas)
      * @returns {Promise<{ cita: object, tokenCita: string }>}
      */
-    async validarAccesoCita({ cedula, codigo, ip }) {
-      // Pasos 3-4 y E3: con 5 fallidos consecutivos en 15 minutos, ni se busca la cita.
-      const recientes = await intentosRepo.fallidosRecientes(cedula, {
-        ventanaMinutos: VENTANA_MINUTOS,
-        limite: MAX_FALLIDOS,
-      });
-      if (recientes.length >= MAX_FALLIDOS) {
-        // Se desbloquea cuando el 5.º fallido más reciente sale de la ventana.
-        throw errorBloqueado(recientes[MAX_FALLIDOS - 1].segundosRestantes);
-      }
-
-      const cita = await citasRepo.buscarPorCedulaYCodigo(cedula, codigo);
-      const ipHash = hashIp(ip);
-
-      if (!cita) {
-        await intentosRepo.registrar({ cedula, exitoso: false, ipHash });
-        // El fallido que acaba de registrarse completa los 5: se avisa del bloqueo ya.
-        if (recientes.length + 1 >= MAX_FALLIDOS) {
-          throw errorBloqueado(recientes[MAX_FALLIDOS - 2].segundosRestantes);
-        }
-        throw errorNoCoincide();
-      }
-
-      // Paso 5: ambos datos coinciden; el éxito reinicia el conteo de fallidos.
-      await intentosRepo.registrar({ cedula, exitoso: true, ipHash });
+    async validarAccesoCita(datos) {
+      const cita = await verificarCedulaYCodigo(datos);
 
       // CU-06/CU-07 E2: solo una cita Confirmada y por venir se gestiona en línea.
       const motivo = motivoNoModificablePorPaciente(cita, reloj());
@@ -68,7 +90,7 @@ function crearAccesoPublicoService({ intentosRepo, citasRepo, tokenCita, hashIp,
 
       return {
         cita: presentarCita(cita),
-        tokenCita: tokenCita.firmar({ citaId: cita.id, codigo: cita.codigo }),
+        tokenCita: emitirToken(cita),
       };
     },
   };

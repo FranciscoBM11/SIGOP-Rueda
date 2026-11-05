@@ -18,14 +18,16 @@ export class ErrorApi extends Error {
  */
 export async function api(ruta, { metodo = 'GET', cuerpo, token } = {}) {
   const headers = {};
-  if (cuerpo !== undefined) headers['Content-Type'] = 'application/json';
+  // FormData (subida de archivos): el navegador pone el Content-Type multipart.
+  const esFormulario = typeof FormData !== 'undefined' && cuerpo instanceof FormData;
+  if (cuerpo !== undefined && !esFormulario) headers['Content-Type'] = 'application/json';
   if (token) headers.Authorization = `Bearer ${token}`;
   let res;
   try {
     res = await fetch(`/api/v1${ruta}`, {
       method: metodo,
       headers,
-      body: cuerpo === undefined ? undefined : JSON.stringify(cuerpo),
+      body: cuerpo === undefined ? undefined : esFormulario ? cuerpo : JSON.stringify(cuerpo),
     });
   } catch {
     throw new ErrorApi(0, {
@@ -41,6 +43,42 @@ export async function api(ruta, { metodo = 'GET', cuerpo, token } = {}) {
     );
   }
   return datos;
+}
+
+/**
+ * Descarga un archivo protegido (p. ej. un informe PDF). El token va en la
+ * cabecera Authorization, nunca en la URL, por eso no basta con un enlace.
+ */
+export async function descargarArchivo(ruta, { token, nombre = 'archivo.pdf' } = {}) {
+  let res;
+  try {
+    res = await fetch(`/api/v1${ruta}`, { headers: token ? { Authorization: `Bearer ${token}` } : {} });
+  } catch {
+    throw new ErrorApi(0, {
+      codigo: 'SIN_CONEXION',
+      mensaje: 'No se pudo conectar. Revisa tu conexión a internet e intenta de nuevo.',
+    });
+  }
+  if (!res.ok) {
+    const datos = await res.json().catch(() => null);
+    throw new ErrorApi(
+      res.status,
+      datos ?? { codigo: 'ERROR_INTERNO', mensaje: 'Ocurrió un error inesperado. Intenta de nuevo en unos minutos.' },
+    );
+  }
+  const blob = await res.blob();
+  const url = URL.createObjectURL(blob);
+  const enlace = Object.assign(document.createElement('a'), { href: url, download: nombre });
+  document.body.append(enlace);
+  enlace.click();
+  enlace.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 10000);
+}
+
+/** '1258291' → '1.2 MB'; '48000' → '47 KB'. */
+export function formatearTamano(bytes) {
+  if (bytes >= 1024 * 1024) return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+  return `${Math.max(1, Math.round(bytes / 1024))} KB`;
 }
 
 /** Crea un elemento: el('p', { class: 'x' }, 'texto', otroNodo). */

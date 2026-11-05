@@ -34,9 +34,13 @@
         <span class="block text-sm text-white/80">Panel</span>
       </span>
     </div>
-    <nav class="px-4 py-4 lg:mt-6" aria-label="Panel">
+    <nav class="grid gap-1 px-4 py-4 lg:mt-6" aria-label="Panel">
       <a href="/admin/agenda.html" aria-current="page"
          class="flex min-h-11 items-center rounded-lg border-l-4 border-sol bg-white/10 px-4 font-bold">Agenda del día</a>
+      <a href="/admin/informes.html" data-solo-rol="RECEPCIONISTA" hidden
+         class="flex min-h-11 items-center rounded-lg border-l-4 border-transparent px-4 font-bold hover:bg-white/10">Subir informe</a>
+      <a href="/admin/disponibilidad.html" data-solo-rol="MEDICO" hidden
+         class="flex min-h-11 items-center rounded-lg border-l-4 border-transparent px-4 font-bold hover:bg-white/10">Disponibilidad</a>
     </nav>
     <div class="mt-auto border-t border-white/15 px-6 py-5">
       <p class="font-bold" data-usuario-nombre></p>

@@ -23,10 +23,13 @@ export function manejarErrorSesion(err) {
 }
 
 /**
- * Comprueba la sesión, completa el nombre y el rol en el menú y conecta el
- * botón «Menú» (móvil) y «Cerrar sesión». Devuelve { nombre, rol }.
+ * Comprueba la sesión, completa el nombre y el rol en el menú, muestra solo
+ * los enlaces del rol ([data-solo-rol]) y conecta el botón «Menú» (móvil) y
+ * «Cerrar sesión». Devuelve { nombre, rol }.
+ * Con `rol`, la página es solo para ese rol: a los demás se les explica y se
+ * les ofrece volver a la agenda (la API también lo impide con 403).
  */
-export async function iniciarPanel() {
+export async function iniciarPanel({ rol } = {}) {
   let sesion;
   try {
     sesion = await api('/admin/sesion');
@@ -45,6 +48,7 @@ export async function iniciarPanel() {
 
   for (const nodo of document.querySelectorAll('[data-usuario-nombre]')) nodo.textContent = sesion.nombre;
   for (const nodo of document.querySelectorAll('[data-usuario-rol]')) nodo.textContent = ROL_TEXTO[sesion.rol] ?? sesion.rol;
+  for (const enlace of document.querySelectorAll('[data-solo-rol]')) enlace.hidden = enlace.dataset.soloRol !== sesion.rol;
 
   const boton = document.getElementById('abrir-menu');
   const menu = document.getElementById('menu-panel');
@@ -67,5 +71,21 @@ export async function iniciarPanel() {
   }
 
   document.body.hidden = false;
+
+  if (rol && sesion.rol !== rol) {
+    const aviso = document.createElement('div');
+    aviso.className = 'rounded-lg border border-tinta/10 bg-white p-5 shadow-sm';
+    const texto = document.createElement('p');
+    texto.className = 'font-bold';
+    texto.textContent = `Esta sección es solo para ${rol === 'MEDICO' ? 'la médica' : 'recepción'}.`;
+    const volver = Object.assign(document.createElement('a'), {
+      href: '/admin/agenda.html',
+      className: 'mt-3 inline-flex min-h-11 items-center font-bold text-baya underline',
+      textContent: '← Volver a la agenda',
+    });
+    aviso.append(texto, volver);
+    document.getElementById('contenido').replaceChildren(aviso);
+    throw new Error('ROL_NO_AUTORIZADO');
+  }
   return sesion;
 }

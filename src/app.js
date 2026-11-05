@@ -16,6 +16,9 @@ const { crearCitasRoutes } = require('./modules/citas/citas.routes');
 const { crearAuthRoutes } = require('./modules/auth/auth.routes');
 const { crearCitasAdminRoutes } = require('./modules/citas/citas-admin.routes');
 const { crearTriajeAdminRoutes } = require('./modules/triaje/triaje-admin.routes');
+const { crearResultadosRoutes } = require('./modules/resultados/resultados.routes');
+const { crearInformesAdminRoutes } = require('./modules/resultados/informes-admin.routes');
+const { crearDisponibilidadAdminRoutes } = require('./modules/disponibilidad/disponibilidad-admin.routes');
 
 const CARPETA_PUBLICA = path.resolve(__dirname, '..', 'public');
 
@@ -42,10 +45,13 @@ function crearApp({ servicios } = {}) {
   api.use(crearServiciosRoutes(dependencias));
   api.use(crearTurnosRoutes(dependencias));
   api.use(crearCitasRoutes(dependencias));
+  api.use(crearResultadosRoutes(dependencias));
   // Panel del personal (/admin, con sesión)
   api.use(crearAuthRoutes(dependencias));
   api.use(crearCitasAdminRoutes(dependencias));
   api.use(crearTriajeAdminRoutes(dependencias));
+  api.use(crearInformesAdminRoutes(dependencias));
+  api.use(crearDisponibilidadAdminRoutes(dependencias));
   api.use(rutaNoEncontrada);
   app.use('/api/v1', api);
   app.use('/api', rutaNoEncontrada);

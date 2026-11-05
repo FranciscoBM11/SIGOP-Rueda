@@ -107,12 +107,12 @@ Cuestionario de pre-triaje del servicio, en su orden (RN-08). Solo preguntas act
 
 ### `GET /api/v1/turnos?servicioId&desde&hasta` (CU-02)
 
-Turnos del rango con su disponibilidad. Antes de responder genera con `sp_generar_turnos` los turnos que falten en el rango según el horario laboral (RN-10); si la generación falla, responde con los turnos existentes y lo registra.
+Turnos del rango con su disponibilidad. Antes de responder genera con `sp_generar_turnos` los turnos de los **días del rango que todavía no tienen turnos**, según el horario laboral (RN-10); un día ya generado no se vuelve a generar, para no mezclar dos horarios si la médica lo cambió (Iteración 4). Si la generación falla, responde con los turnos existentes y lo registra.
 
 - **Acceso:** pública. `Cache-Control: no-store`.
 - **Entrada (query):** `servicioId` (entero), `desde` y `hasta` (AAAA-MM-DD). No se aceptan otros parámetros.
 - **Reglas:** `hasta` ≥ `desde`; como máximo 31 días por consulta; `hasta` no más de 90 días después de hoy. Si `desde` es anterior a hoy se toma hoy. Se omiten los turnos que ya empezaron (hora de Managua).
-- **Respuesta 200:** ordenada por fecha y hora. `disponible: false` = el turno tiene una cita activa (RN-01); la interfaz lo muestra tachado. No incluye ningún dato de la cita.
+- **Respuesta 200:** ordenada por fecha y hora. Solo turnos habilitados (los que quedaron fuera del horario de la médica se deshabilitan, CU-16). `disponible: false` = el turno, u otro turno que se le cruza en horario, tiene una cita activa (RN-01; el cruce aparece cuando la médica cambia la duración y se conservan citas con la duración anterior). La interfaz lo muestra tachado. No incluye ningún dato de la cita.
 
   ```json
   [ { "id": 41, "fecha": "2026-11-09", "horaInicio": "08:00", "horaFin": "08:40", "disponible": true } ]
@@ -319,6 +319,7 @@ Citas de una fecha (incluidas las canceladas), ordenadas por hora.
   - `transiciones`: estados a los que **este rol** puede llevar la cita **ahora** (igual que `GET /transiciones`).
   - `puedeReprogramar`: solo `true` para la recepción, con la cita `CONFIRMADA` y su hora sin empezar.
   - `tieneTriaje`: solo aparece para la médica (RN-16). La agenda nunca incluye respuestas del triaje.
+  - `fueraDeHorario: true`: solo aparece en citas no canceladas cuyo turno quedó fuera del horario después de que la médica lo cambió (CU-16 E2). La interfaz lo marca para que recepción la reprograme.
   - Sin correo, teléfono ni identificadores internos.
 
 ### `GET /api/v1/admin/citas/:codigo/transiciones` (CU-12)
@@ -393,3 +394,138 @@ Ficha de triaje de la cita, con las respuestas descifradas (RN-14) en el orden d
 
 - `/admin/login.html` (A1) y `/admin/agenda.html` (A2, con la ficha de triaje A3 en un diálogo). `/admin` redirige a la agenda, y la agenda redirige al inicio de sesión si no hay sesión.
 - **Citas de demostración:** `npm run db:citas-demo` crea citas ficticias para hoy (o el próximo día hábil) y el siguiente día hábil, con estados variados y triaje cifrado. Las pacientes tienen cédula `000-…` y correo `@ejemplo.com`. No se ejecuta en producción.
+
+## Resultados y disponibilidad (Iteración 4)
+
+### `POST /api/v1/resultados/consulta` (CU-08, CU-09)
+
+Valida cédula y código y lista los informes PDF de esa cita (P5 «Resultados»). Usa **la misma verificación que `POST /citas/acceso`**: el mismo límite de intentos por cédula (RN-15, contador compartido en `intentos_acceso`) y el mismo mensaje genérico. A diferencia de «Mi cita», funciona con la cita en cualquier estado (por lo general ya estará Atendida).
+
+- **Acceso:** pública. Límite: 20 peticiones por minuto por IP y bloqueo por cédula (RN-15). `Cache-Control: no-store`.
+- **Entrada (`consultaResultadosSchema`, no admite campos adicionales):** `{ "cedula": "001-150390-0012K", "codigo": "CR-04821" }`.
+- **Respuesta 200:**
+
+  ```json
+  {
+    "tokenCita": "eyJhbGciOiJIUzI1NiIs...",
+    "cita": { "codigo": "CR-03977", "servicio": "Ecografía Pélvica", "fecha": "2026-10-28" },
+    "informes": [
+      { "id": 31, "nombre": "eco_pelvica_CR-03977.pdf", "tamanoBytes": 1258291, "fechaCarga": "2026-10-29T16:20:00Z" }
+    ]
+  }
+  ```
+
+  `informes` va del más reciente al más antiguo y puede venir vacío: la interfaz muestra «Tus resultados aún no están disponibles» (E3). `fechaCarga` en UTC. `cita` se agregó a lo indicado en la Tabla 57, para el encabezado de la Figura 22. El token es el mismo token de cita de 15 minutos (audiencia `cita`).
+- **Errores:** 400 `DATOS_INVALIDOS` (no cuenta como intento); 401 `ACCESO_DENEGADO` (E1); 429 `ACCESO_BLOQUEADO` (E2); 429 `DEMASIADAS_PETICIONES`.
+
+### `GET /api/v1/resultados/:id/archivo` (CU-09)
+
+Descarga un informe. Se descifra (AES-256-GCM) y se comprueba su SHA-256 antes de entregarlo.
+
+- **Acceso:** token de cita en `Authorization: Bearer <tokenCita>` (nunca en la URL; por eso la página descarga con `fetch` y no con un enlace). Límite de 20 peticiones por minuto por IP. Solo se entregan informes de la cita del token.
+- **Respuesta 200:** el PDF, con `Content-Type: application/pdf`, `Content-Disposition: attachment; filename="<nombre>"` y `Cache-Control: no-store`.
+- **Errores:**
+
+  | HTTP | `codigo` | Cuándo |
+  |---|---|---|
+  | 400 | `DATOS_INVALIDOS` | `:id` no es un entero positivo. |
+  | 401 | `TOKEN_REQUERIDO` · `TOKEN_INVALIDO` | Falta el token, venció o fue alterado. |
+  | 404 | `INFORME_NO_ENCONTRADO` | El informe no existe **o es de otra cita** (misma respuesta, para no revelar que existe). |
+  | 500 | `INFORME_NO_DISPONIBLE` | No se pudo descifrar o el SHA-256 no coincide (E4). Mensaje: comunicarse con la clínica. Se registra solo el id del informe. |
+
+### `POST /api/v1/admin/pacientes/busqueda` (CU-15 pasos 1-2)
+
+- **Acceso:** sesión, **solo recepción**.
+- **Entrada:** `{ "cedula": "001-300791-0019T" }` (ER-01, en el cuerpo, nunca en la URL).
+- **Respuesta 200:** la paciente y todas sus citas, de la más reciente a la más antigua, con cuántos informes tiene cada una y si se le puede subir uno.
+
+  ```json
+  {
+    "paciente": { "nombres": "Rosa Elena Ruiz", "cedula": "001-300791-0019T" },
+    "citas": [
+      { "codigo": "CR-04801", "estado": "ATENDIDA", "servicio": "Ecografía Pélvica", "fecha": "2026-11-04", "horaInicio": "09:00", "informes": 0, "admiteInforme": true },
+      { "codigo": "CR-04900", "estado": "CONFIRMADA", "servicio": "Papanicolaou", "fecha": "2026-11-20", "horaInicio": "08:00", "informes": 0, "admiteInforme": false,
+        "motivo": "La cita todavía no se realiza: el informe se sube el día de la cita o después." }
+    ]
+  }
+  ```
+
+  **Regla (decisión de la Iteración 4):** se sube informe a citas de **hoy o anteriores** que no estén `CANCELADA` ni `NO_ASISTIO`.
+- **Errores:** 400 `DATOS_INVALIDOS`; 404 `PACIENTE_NO_ENCONTRADA` (la cédula no existe o no tiene citas, E3); los comunes de sesión (401; 403 `ROL_NO_AUTORIZADO` para la médica).
+
+### `POST /api/v1/admin/citas/:codigo/informes` (CU-15 pasos 3-6)
+
+Sube un informe PDF a la cita. Se puede repetir para subir varios informes a la misma cita (A1).
+
+- **Acceso:** sesión, **solo recepción**. La sesión y el rol se comprueban **antes** de recibir el archivo.
+- **Entrada:** `multipart/form-data` con **un solo** campo de archivo llamado `archivo` (sin otros campos). Se recibe en memoria con `multer` (nunca se escribe en disco sin cifrar), con límite de 10 MB.
+- **Validación (RN-09, ER-08), en este orden:**
+  1. nombre terminado en `.pdf` y tipo declarado `application/pdf` (o `application/x-pdf`);
+  2. tamaño entre 1 byte y 10 MB;
+  3. **contenido real**: empieza con la firma `%PDF-x.y` y tiene el marcador `%%EOF` en los últimos 1024 bytes (un archivo renombrado a .pdf o cortado se rechaza).
+- **Nombre guardado:** se quita la ruta, se quitan las tildes y cualquier carácter fuera de ER-08 se cambia por `_`; se recorta a 100 caracteres. ER-08 de la Fase 3 admite además el guion: `Ecografía pélvica (1).pdf` → `Ecografia pelvica _1_.pdf`.
+- **Guardado (RN-14):** el PDF se cifra con AES-256-GCM (`CLAVE_CIFRADO`) y se guarda en `informes_resultado.archivo_cifrado` con su SHA-256, la cita, la recepcionista (`cargado_por`) y la fecha de carga (UTC). El registro del servidor (`informe_cargado`) guarda solo ids y tamaño.
+- **Respuesta 201:**
+
+  ```json
+  { "informe": { "id": 31, "nombre": "Ecografia pelvica.pdf", "tamanoBytes": 1258291, "fechaCarga": "2026-11-04T16:20:00Z", "cita": "CR-04801" } }
+  ```
+- **Errores:**
+
+  | HTTP | `codigo` | Cuándo |
+  |---|---|---|
+  | 400 | `DATOS_INVALIDOS` | `:codigo` no cumple ER-05. |
+  | 400 | `ARCHIVO_REQUERIDO` | No se envió el archivo. |
+  | 400 | `ARCHIVO_INVALIDO` | El campo no se llama `archivo`, hay más de un archivo o campos extra, o el multipart está mal formado. |
+  | 404 | `CITA_NO_ENCONTRADA` | No existe una cita con ese código. |
+  | 409 | `CITA_NO_ADMITE_INFORME` | La cita está cancelada, la paciente no asistió o la cita es futura. |
+  | 422 | `ARCHIVO_NO_PDF` | No termina en .pdf, el tipo no es PDF o el contenido no es un PDF (E1). |
+  | 422 | `ARCHIVO_DEMASIADO_GRANDE` | Supera 10 MB (E2). |
+  | 422 | `ARCHIVO_VACIO` | El archivo no tiene contenido. |
+  | 422 | `ARCHIVO_DANADO` | PDF incompleto o dañado, sin `%%EOF` (E4). |
+
+### `GET /api/v1/admin/disponibilidad` y `PUT /api/v1/admin/disponibilidad` (CU-16)
+
+Horario de atención de la médica en sesión (`medico_id` = su id de usuario) y citas que quedaron fuera de él.
+
+- **Acceso:** sesión, **solo la médica**.
+- **Entrada del PUT (`guardarHorariosSchema`, no admite campos adicionales):** los **7 días**, cada uno una sola vez, y al menos uno con atención:
+
+  ```json
+  {
+    "horarios": [
+      { "diaSemana": 1, "atiende": true, "apertura": "08:00", "cierre": "16:00", "duracion": 40 },
+      { "diaSemana": 6, "atiende": true, "apertura": "08:00", "cierre": "12:00", "duracion": 30 },
+      { "diaSemana": 7, "atiende": false, "apertura": null, "cierre": null, "duracion": null }
+    ]
+  }
+  ```
+
+  `diaSemana`: 1 = lunes … 7 = domingo. Si `atiende`: `apertura` y `cierre` en HH:MM (ER-10), cierre posterior a la apertura, `duracion` entera de 30 a 45 minutos (RN-10) y la jornada debe alcanzar al menos para un turno. Los errores llegan en `detalles` con el campo, p. ej. `horarios.3.cierre`.
+- **Al guardar (una sola transacción):**
+  1. actualiza `horarios_laborales` (un día que deja de atender queda con `activo = 0`; uno nuevo se inserta);
+  2. **desde mañana** (los turnos de hoy no cambian): habilita los turnos que encajan en la nueva cuadrícula (dentro del horario, con la duración vigente y empezando en apertura + k × duración) y deshabilita los demás; borra los deshabilitados que nunca tuvieron cita;
+  3. genera con `sp_generar_turnos` los turnos nuevos desde mañana hasta el último día que ya tenía turnos (al menos 14 días, como máximo 90);
+  4. las citas **no se tocan** (E2): las activas en turnos deshabilitados se devuelven en `citasFueraDeHorario` y aparecen en la agenda con `fueraDeHorario: true`. Un turno nuevo que se cruza con una de ellas figura como ocupado.
+- **Respuesta 200 (GET y PUT):**
+
+  ```json
+  {
+    "horarios": [
+      { "diaSemana": 1, "nombre": "Lunes", "atiende": true, "apertura": "08:00", "cierre": "16:00", "duracion": 40 },
+      { "diaSemana": 7, "nombre": "Domingo", "atiende": false, "apertura": null, "cierre": null, "duracion": null }
+    ],
+    "citasFueraDeHorario": [
+      { "codigo": "CR-04851", "estado": "CONFIRMADA", "servicio": "Control Prenatal", "fecha": "2026-11-12", "horaInicio": "14:40", "horaFin": "15:20" }
+    ]
+  }
+  ```
+
+  Siempre 7 días. En el GET, `citasFueraDeHorario` incluye las de hoy en adelante. Sin datos de las pacientes.
+- **Errores:** 400 `DATOS_INVALIDOS` (E1); los comunes de sesión (401 E3; 403 `ROL_NO_AUTORIZADO` para la recepción).
+
+### Páginas de la Iteración 4
+
+- `/resultados.html` (P5): enlazada desde el inicio. El token vive solo en memoria; «Consultar otra cita» borra los datos del formulario.
+- `/admin/informes.html` (A4, solo recepción) y `/admin/disponibilidad.html` (A5, solo la médica). El menú del panel muestra a cada rol solo su opción; si otro rol abre la página, ve un aviso y un enlace a la agenda.
+- **PDF de prueba:** `tests/fixtures/informe-demo.pdf` (ficticio) para probar la subida a mano.

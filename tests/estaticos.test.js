@@ -128,3 +128,52 @@ describe('Sin autocompletado del navegador (dispositivos compartidos)', () => {
     expect(js).toMatch(/const comunes = \{[^}]*autocomplete: 'off'/);
   });
 });
+
+describe('Iteración 4: P5 Resultados, A4 Subir informe y A5 Disponibilidad', () => {
+  const app = crearApp();
+
+  test('/resultados.html se sirve con su módulo, sin scripts en línea y con salida al inicio', async () => {
+    const res = await request(app).get('/resultados.html');
+    expect(res.status).toBe(200);
+    expect(res.text).toContain('<script type="module" src="/js/resultados.js"></script>');
+    expect(res.text).not.toMatch(/<script>(?!<\/script>)/);
+    expect(res.text.match(/href="\/"[^>]*>[^<]*Volver al inicio/g).length).toBeGreaterThanOrEqual(2);
+  });
+
+  test('el inicio enlaza a «Mi cita» y a «Resultados»', async () => {
+    const res = await request(app).get('/');
+    expect(res.text).toContain('href="/mi-cita.html"');
+    expect(res.text).toContain('href="/resultados.html"');
+    expect(res.text).not.toContain('Disponible pronto');
+  });
+
+  test.each([
+    ['/admin/informes.html', '/js/admin-informes.js', 'id="form-informe"'],
+    ['/admin/disponibilidad.html', '/js/admin-disponibilidad.js', 'id="form-horarios"'],
+  ])('%s: módulo, sin scripts en línea, sin indexar, con menú y cerrar sesión', async (ruta, modulo, marca) => {
+    const res = await request(app).get(ruta);
+    expect(res.status).toBe(200);
+    expect(res.text).toContain(`<script type="module" src="${modulo}"></script>`);
+    expect(res.text).not.toMatch(/<script>(?!<\/script>)/);
+    expect(res.text).toContain('name="robots" content="noindex"');
+    expect(res.text).toContain(marca);
+    expect(res.text).toContain('data-cerrar-sesion');
+    expect(res.text).toContain('id="abrir-menu"');
+    expect(res.text).toContain('href="/admin/agenda.html"');
+    expect(res.text.match(/aria-current="page"/g)).toHaveLength(1);
+  });
+
+  test('el menú del panel muestra cada opción solo a su rol', async () => {
+    for (const ruta of ['/admin/agenda.html', '/admin/informes.html', '/admin/disponibilidad.html']) {
+      const res = await request(app).get(ruta);
+      expect(res.text).toMatch(/href="\/admin\/informes\.html" data-solo-rol="RECEPCIONISTA" hidden/);
+      expect(res.text).toMatch(/href="\/admin\/disponibilidad\.html" data-solo-rol="MEDICO" hidden/);
+    }
+  });
+
+  test.each(['/js/resultados.js', '/js/admin-informes.js', '/js/admin-disponibilidad.js'])('existe %s', async (ruta) => {
+    const res = await request(app).get(ruta);
+    expect(res.status).toBe(200);
+    expect(res.headers['content-type']).toMatch(/javascript/);
+  });
+});

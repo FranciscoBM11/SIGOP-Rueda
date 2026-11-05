@@ -34,6 +34,10 @@ const { crearUsuariosRepository } = require('./auth/usuarios.repository');
 const { crearSesionesRepository } = require('./auth/sesiones.repository');
 const { crearTokenSesion } = require('./auth/token-sesion');
 const { crearAuthService } = require('./auth/auth.service');
+const { crearInformesRepository } = require('./resultados/informes.repository');
+const { crearInformesService } = require('./resultados/informes.service');
+const { crearHorariosRepository } = require('./disponibilidad/horarios.repository');
+const { crearHorariosService } = require('./disponibilidad/horarios.service');
 
 function crearCanalCorreo() {
   const { smtp } = obtenerConfig();
@@ -82,6 +86,13 @@ function crearDependencias() {
     hashIp,
   });
 
+  const informesService = crearInformesService({
+    informesRepo: crearInformesRepository(bd),
+    citasRepo,
+    accesoPublicoService,
+  });
+  const horariosService = crearHorariosService({ transaccion, horariosRepo: crearHorariosRepository(bd) });
+
   return {
     serviciosService,
     preguntasService,
@@ -92,6 +103,8 @@ function crearDependencias() {
     tokenCita,
     triajeService,
     authService,
+    informesService,
+    horariosService,
   };
 }
 

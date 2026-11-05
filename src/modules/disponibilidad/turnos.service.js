@@ -18,6 +18,22 @@ function yaPaso(turno, ahora) {
   return turno.fecha < ahora.fecha || (turno.fecha === ahora.fecha && turno.hora_inicio <= ahora.hora);
 }
 
+/** Agrupa en rangos [desde, hasta] consecutivos los días que no están en `conTurnos`. */
+function rangosSinTurnos(desde, hasta, conTurnos) {
+  const rangos = [];
+  let inicio = null;
+  for (let dia = desde; dia <= hasta; dia = sumarDias(dia, 1)) {
+    if (!conTurnos.has(dia)) {
+      inicio ??= dia;
+    } else if (inicio) {
+      rangos.push([inicio, sumarDias(dia, -1)]);
+      inicio = null;
+    }
+  }
+  if (inicio) rangos.push([inicio, hasta]);
+  return rangos;
+}
+
 function presentar(fila) {
   return { id: fila.id, fecha: fila.fecha, horaInicio: fila.hora_inicio, horaFin: fila.hora_fin };
 }
@@ -42,7 +58,13 @@ function crearTurnosService({ turnosRepo, serviciosService, reloj = ahoraManagua
       if (inicio > hasta) return [];
 
       try {
-        await turnosRepo.generar(inicio, hasta);
+        // Solo se generan los días que aún no tienen turnos: así un cambio de
+        // horario (CU-16, que rige desde mañana) no mezcla turnos de dos
+        // horarios en un día ya generado.
+        const conTurnos = await turnosRepo.fechasConTurnos(inicio, hasta);
+        for (const [a, b] of rangosSinTurnos(inicio, hasta, conTurnos)) {
+          await turnosRepo.generar(a, b);
+        }
       } catch (err) {
         // Si falla la generación (p. ej. falta GRANT EXECUTE) se muestran los turnos existentes.
         registro.warn('turnos_generacion_fallida', { error: registro.resumirError(err) });
@@ -75,4 +97,4 @@ function crearTurnosService({ turnosRepo, serviciosService, reloj = ahoraManagua
   };
 }
 
-module.exports = { crearTurnosService, MAX_DIAS_RANGO, MAX_DIAS_ADELANTE };
+module.exports = { crearTurnosService, rangosSinTurnos, yaPaso, MAX_DIAS_RANGO, MAX_DIAS_ADELANTE };
