@@ -2,3 +2,6 @@ node_modules/
 .env
 *.log
 coverage/
+
+# Salida del túnel de Cloudflare (iniciar-feria.bat)
+tunel.log

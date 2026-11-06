@@ -23,6 +23,18 @@ const { crearDisponibilidadAdminRoutes } = require('./modules/disponibilidad/dis
 const CARPETA_PUBLICA = path.resolve(__dirname, '..', 'public');
 
 /**
+ * Qué proxy es de confianza para leer X-Forwarded-For (req.ip).
+ * - Producción (Render): un salto, el borde de Render.
+ * - Desarrollo/feria (laptop + cloudflared en la misma computadora): solo
+ *   loopback. Así req.ip es la IP real de la persona cuando llega por el túnel,
+ *   y quien se conecta directo (Wi-Fi) no puede falsificarla con la cabecera.
+ * Afecta a los límites de intentos (RN-12, RN-15) y al hash de la IP.
+ */
+function confianzaProxy(entorno = process.env.NODE_ENV) {
+  return entorno === 'production' ? 1 : 'loopback';
+}
+
+/**
  * @param {object} [opciones]
  * @param {object} [opciones.servicios] servicios ya construidos (en pruebas, simulados).
  *        Si se omite se crean los reales con crearDependencias().
@@ -31,8 +43,7 @@ function crearApp({ servicios } = {}) {
   const dependencias = servicios ?? crearDependencias();
   const app = express();
 
-  // Render pone un proxy delante: confiar en un salto para obtener la IP real.
-  app.set('trust proxy', 1);
+  app.set('trust proxy', confianzaProxy());
 
   app.use(cabecerasSeguras());
   app.use(idPeticion);
@@ -65,4 +76,4 @@ function crearApp({ servicios } = {}) {
   return app;
 }
 
-module.exports = { crearApp };
+module.exports = { crearApp, confianzaProxy };

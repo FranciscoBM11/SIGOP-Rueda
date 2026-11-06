@@ -2,7 +2,10 @@
 // (CU-13) y ficha de triaje para la médica (CU-14, A3).
 // Las acciones de cada cita las decide el servidor según el rol y el estado
 // (campo `transiciones` y `puedeReprogramar`); aquí solo se muestran.
-// La página no se actualiza sola: así la sesión vence tras 30 min sin uso.
+// La agenda se actualiza sola cada 20 s mientras la pestaña está visible, sin
+// diálogos ni menú abiertos. Cada petición renueva la sesión, así que se pausa
+// tras 10 min sin interacción: la sesión vence a más tardar ~40 min después del
+// último uso (30 min de inactividad del servidor + la pausa).
 import { api, el, formatearFecha, hoyManagua, mostrarAviso, sumarDias } from './api.js';
 import { iniciarPanel, manejarErrorSesion } from './admin-comun.js';
 import { pintarTurnos } from './selector-turnos.js';
@@ -27,6 +30,8 @@ const EXITO_POR_ESTADO = {
 const ERRORES_DE_TURNO = ['TURNO_OCUPADO', 'TURNO_NO_DISPONIBLE', 'TURNO_NO_ENCONTRADO', 'MISMO_TURNO'];
 const VENTANA_DIAS = 14;
 const MAX_DIAS_ADELANTE = 90;
+const INTERVALO_AUTO_MS = 20 * 1000; // actualización automática
+const PAUSA_SIN_USO_MS = 10 * 60 * 1000; // sin clic, toque ni tecla: deja de actualizar
 
 const BOTON = {
   principal: 'min-h-11 rounded-lg bg-salvia px-4 font-bold text-white hover:bg-salvia/90 disabled:opacity-60',
@@ -49,6 +54,11 @@ const estado = {
   cambio: null,
   cuentas: null,
   destello: null, // código de la cita recién actualizada (destello breve en su fila)
+  // Actualización automática
+  version: 0, // sube en cada carga; una respuesta de una carga anterior se descarta
+  ocupado: 0, // cargas o cambios de estado en curso
+  firma: '', // lo último dibujado; si no cambia, no se vuelve a dibujar
+  ultimaCarga: 0,
 };
 
 // ---------------------------------------------------------------------------
@@ -129,20 +139,34 @@ async function cargar({ conservarAviso = false, entrada = true } = {}) {
   const dia = formatearFecha(estado.fecha, 'dia');
   $('titulo').textContent = `Agenda del ${dia.charAt(0).toLowerCase()}${dia.slice(1)}`;
   $('resumen').textContent = 'Cargando…';
+  const version = ++estado.version;
+  estado.ocupado += 1;
   try {
-    estado.citas = await api(`/admin/citas/agenda?fecha=${estado.fecha}`);
+    const citas = await api(`/admin/citas/agenda?fecha=${estado.fecha}`);
+    if (version !== estado.version) return; // ya se pidió otro día
+    estado.citas = citas;
   } catch (err) {
+    if (version !== estado.version) return;
     estado.citas = [];
     $('resumen').textContent = '';
     pintar();
     tratarError(err);
     return;
+  } finally {
+    estado.ocupado -= 1;
+    estado.ultimaCarga = Date.now();
   }
   pintar({ entrada });
 }
 
+/** Lo que se ve de la agenda: los datos y qué citas están en curso (cambia con la hora). */
+function firmaAgenda(citas) {
+  return `${JSON.stringify(citas)}|${citas.filter(enCurso).map((c) => c.codigo).join(',')}`;
+}
+
 /** @param {{entrada?: boolean, fundido?: boolean}} [mov] entrada: escalonado; fundido: cambio de filtro. */
 function pintar({ entrada = false, fundido = false } = {}) {
+  estado.firma = firmaAgenda(estado.citas);
   const enEspera = estado.citas.filter((c) => c.estado === 'EN_ESPERA').length;
   $('resumen').textContent = `${plural(estado.citas.length, 'cita', 'citas')}, ${enEspera} en espera`;
   pintarFiltros();
@@ -332,7 +356,7 @@ function fila(c) {
   const resaltada = enCurso(c);
   return el(
     'tr',
-    { class: `border-b border-tinta/10 last:border-0 ${resaltada ? 'bg-acento/10 shadow-[inset_4px_0_0_var(--color-acento)]' : ''} ${claseDestello(c)}` },
+    { 'data-codigo': c.codigo, class: `border-b border-tinta/10 last:border-0 ${resaltada ? 'bg-acento/10 shadow-[inset_4px_0_0_var(--color-acento)]' : ''} ${claseDestello(c)}` },
     el('td', { class: 'px-4 py-4 align-top font-titulo text-lg font-bold' }, c.horaInicio, resaltada ? el('span', { class: 'sr-only' }, ' (en curso)') : null),
     el('td', { class: 'px-4 py-4 align-top' }, el('span', { class: 'block break-words' }, c.paciente), el('span', { class: 'block text-sm text-tinta-2' }, c.cedula)),
     el('td', { class: 'px-4 py-4 align-top' }, c.servicio),
@@ -347,7 +371,7 @@ function tarjeta(c) {
   const botones = acciones(c);
   return el(
     'li',
-    { class: `rounded-xl bg-white p-4 shadow-sm ${resaltada ? 'border-l-4 border-acento' : ''} ${claseDestello(c)}` },
+    { 'data-codigo': c.codigo, class: `rounded-xl bg-white p-4 shadow-sm ${resaltada ? 'border-l-4 border-acento' : ''} ${claseDestello(c)}` },
     el(
       'div',
       { class: 'flex gap-3' },
@@ -374,25 +398,30 @@ function tarjeta(c) {
  */
 async function cambiarEstado(c, nuevo, boton, mostrarError) {
   if (boton) boton.disabled = true;
+  estado.ocupado += 1; // la actualización automática espera a que termine
   try {
-    await api(`/admin/citas/${c.codigo}/estado`, { metodo: 'PATCH', cuerpo: { estado: nuevo } });
-  } catch (err) {
-    if (boton) boton.disabled = false;
-    if (manejarErrorSesion(err)) return false;
-    if (mostrarError) {
-      mostrarError(err.message);
-    } else {
-      // La agenda puede estar desactualizada (otro usuario cambió la cita).
-      await cargar({ entrada: false });
-      avisoError(err.message);
+    try {
+      await api(`/admin/citas/${c.codigo}/estado`, { metodo: 'PATCH', cuerpo: { estado: nuevo } });
+    } catch (err) {
+      if (boton) boton.disabled = false;
+      if (manejarErrorSesion(err)) return false;
+      if (mostrarError) {
+        mostrarError(err.message);
+      } else {
+        // La agenda puede estar desactualizada (otro usuario cambió la cita).
+        await cargar({ entrada: false });
+        avisoError(err.message);
+      }
+      return false;
     }
-    return false;
+    avisoOk(`Cita ${c.codigo} de ${c.paciente}: ${EXITO_POR_ESTADO[nuevo]}.`);
+    estado.cambio = { codigo: c.codigo, anterior: c.estado };
+    estado.destello = c.codigo;
+    await cargar({ conservarAviso: true, entrada: false });
+    return true;
+  } finally {
+    estado.ocupado -= 1;
   }
-  avisoOk(`Cita ${c.codigo} de ${c.paciente}: ${EXITO_POR_ESTADO[nuevo]}.`);
-  estado.cambio = { codigo: c.codigo, anterior: c.estado };
-  estado.destello = c.codigo;
-  await cargar({ conservarAviso: true, entrada: false });
-  return true;
 }
 
 // ---------------------------------------------------------------------------
@@ -617,6 +646,99 @@ $('fecha').addEventListener('change', (ev) => {
   if (/^\d{4}-\d{2}-\d{2}$/.test(ev.target.value)) irA(ev.target.value);
 });
 
+// ---------------------------------------------------------------------------
+// Actualización automática (cada 20 s, solo con la pestaña visible)
+// Conserva la fecha, el filtro, el foco y el desplazamiento; no repite la
+// entrada de las filas ni muestra «Cargando…». Si nada cambió, no redibuja.
+// ---------------------------------------------------------------------------
+const auto = { ultimaActividad: Date.now(), enPausa: false, enCurso: false };
+
+/** ¿Algo abierto que una actualización interrumpiría? (diálogos, menú «⋯» o una acción en curso) */
+function hayAlgoAbierto() {
+  return Boolean(document.querySelector('dialog[open]')) || !$('menu-acciones').hidden || estado.ocupado > 0;
+}
+
+function mostrarPausa(enPausa) {
+  auto.enPausa = enPausa;
+  $('auto-estado').textContent = enPausa
+    ? 'Actualización automática en pausa por falta de uso. Toca la pantalla o pulsa «Actualizar».'
+    : 'Se actualiza sola cada 20 segundos.';
+}
+
+/** Redibuja sin animación y devuelve el foco al mismo botón (de la fila o del filtro). */
+function pintarConservandoFoco() {
+  const activo = document.activeElement;
+  let pista = null;
+  const cita = activo?.closest?.('[data-codigo]');
+  if (cita && ($('filas').contains(cita) || $('tarjetas').contains(cita))) {
+    const botones = [...cita.querySelectorAll('button')];
+    pista = { lista: $('filas').contains(cita) ? 'filas' : 'tarjetas', codigo: cita.dataset.codigo, indice: botones.indexOf(activo), texto: activo.textContent };
+  } else if ($('filtros').contains(activo)) {
+    pista = { lista: 'filtros', indice: [...$('filtros').querySelectorAll('button')].indexOf(activo) };
+  }
+  pintar(); // sin entrada ni fundido
+  if (!pista) return;
+  let botones = [];
+  if (pista.lista === 'filtros') {
+    botones = [...$('filtros').querySelectorAll('button')];
+  } else {
+    const nueva = [...$(pista.lista).querySelectorAll('[data-codigo]')].find((n) => n.dataset.codigo === pista.codigo);
+    botones = nueva ? [...nueva.querySelectorAll('button')] : [];
+  }
+  const destino = botones.find((b) => pista.texto && b.textContent === pista.texto) ?? botones[pista.indice];
+  destino?.focus({ preventScroll: true });
+}
+
+async function actualizarSola() {
+  if (!estado.sesion || auto.enCurso || document.visibilityState !== 'visible') return;
+  if (Date.now() - auto.ultimaActividad > PAUSA_SIN_USO_MS) {
+    if (!auto.enPausa) mostrarPausa(true);
+    return;
+  }
+  if (hayAlgoAbierto()) return;
+  const { version, fecha } = estado;
+  auto.enCurso = true;
+  try {
+    const citas = await api(`/admin/citas/agenda?fecha=${fecha}`);
+    // Mientras llegaba: se cambió de día, se abrió algo o empezó otra carga.
+    if (version !== estado.version || fecha !== estado.fecha || hayAlgoAbierto()) return;
+    if (firmaAgenda(citas) === estado.firma) return; // sin cambios: no se toca la página
+    estado.citas = citas;
+    pintarConservandoFoco();
+  } catch (err) {
+    // Sesión vencida → login. Otros fallos (red): se reintenta en el próximo ciclo sin molestar.
+    manejarErrorSesion(err);
+  } finally {
+    auto.enCurso = false;
+    estado.ultimaCarga = Date.now();
+  }
+}
+
+function iniciarActualizacionAutomatica() {
+  mostrarPausa(false);
+  setInterval(() => {
+    if (Date.now() - estado.ultimaCarga >= INTERVALO_AUTO_MS - 1000) actualizarSola();
+  }, 5000);
+  // Al volver a la pestaña, actualizar enseguida si ya tocaba.
+  document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState === 'visible' && Date.now() - estado.ultimaCarga >= INTERVALO_AUTO_MS) actualizarSola();
+  });
+  // Uso real de la página (no el movimiento del ratón): reanuda si estaba en pausa.
+  for (const tipo of ['pointerdown', 'keydown', 'wheel', 'touchstart']) {
+    document.addEventListener(
+      tipo,
+      () => {
+        auto.ultimaActividad = Date.now();
+        if (auto.enPausa) {
+          mostrarPausa(false);
+          actualizarSola();
+        }
+      },
+      { passive: true, capture: true },
+    );
+  }
+}
+
 async function iniciar() {
   try {
     estado.sesion = await iniciarPanel();
@@ -627,6 +749,7 @@ async function iniciar() {
   const pedida = new URLSearchParams(location.search).get('fecha');
   if (pedida && /^\d{4}-\d{2}-\d{2}$/.test(pedida)) estado.fecha = pedida;
   await cargar();
+  iniciarActualizacionAutomatica();
 }
 
 iniciar();

@@ -182,4 +182,50 @@ describe('Agenda del personal', () => {
     expect(js).toContain('text-info');
     expect(js).toContain('text-aviso');
   });
+
+  describe('actualización automática', () => {
+    const cuerpo = (nombre) => js.slice(js.indexOf(`function ${nombre}(`), js.indexOf('\n}\n', js.indexOf(`function ${nombre}(`)));
+
+    test('cada 20 s y solo con la pestaña visible', () => {
+      expect(js).toContain('const INTERVALO_AUTO_MS = 20 * 1000;');
+      expect(cuerpo('actualizarSola')).toContain("document.visibilityState !== 'visible'");
+      expect(js).toMatch(/addEventListener\('visibilitychange'/);
+      expect(html).toContain('id="auto-estado"');
+    });
+
+    test('no actualiza con un diálogo o el menú «⋯» abiertos, ni durante otra acción', () => {
+      const algo = cuerpo('hayAlgoAbierto');
+      expect(algo).toContain("document.querySelector('dialog[open]')");
+      expect(algo).toContain("!$('menu-acciones').hidden");
+      expect(algo).toContain('estado.ocupado > 0');
+      // Se vuelve a comprobar al llegar la respuesta.
+      expect(cuerpo('actualizarSola')).toMatch(/fecha !== estado\.fecha \|\| hayAlgoAbierto\(\)/);
+    });
+
+    test('sin parpadeo: no redibuja si nada cambió, sin «Cargando…» ni animación de entrada', () => {
+      const sola = cuerpo('actualizarSola');
+      expect(sola).toContain('firmaAgenda(citas) === estado.firma');
+      expect(sola).not.toContain('Cargando');
+      expect(sola).not.toContain('cargar(');
+      const redibujo = cuerpo('pintarConservandoFoco');
+      expect(redibujo).toMatch(/pintar\(\); \/\/ sin entrada ni fundido/);
+      expect(redibujo).not.toMatch(/entrada:|fundido:|escalonar\(|fundir\(/);
+      expect(redibujo).toContain('focus({ preventScroll: true })');
+    });
+
+    test('conserva la fecha y el filtro (usa el estado actual, no los reinicia)', () => {
+      const sola = cuerpo('actualizarSola');
+      expect(sola).toContain('/admin/citas/agenda?fecha=${fecha}');
+      expect(sola).not.toMatch(/estado\.(filtro|fecha) =/);
+    });
+
+    test('se pausa sin uso para que la sesión pueda vencer (CU-10 A2)', () => {
+      expect(js).toContain('const PAUSA_SIN_USO_MS = 10 * 60 * 1000;');
+      expect(cuerpo('actualizarSola')).toMatch(/Date\.now\(\) - auto\.ultimaActividad > PAUSA_SIN_USO_MS/);
+      // El movimiento del ratón no cuenta como uso.
+      expect(js).toContain("['pointerdown', 'keydown', 'wheel', 'touchstart']");
+      expect(js).not.toContain("'mousemove'");
+      expect(js).not.toContain("'pointermove'");
+    });
+  });
 });
