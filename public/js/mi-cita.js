@@ -5,6 +5,19 @@
 import { api, el, formatearFecha, hoyManagua, mostrarAviso, sumarDias } from './api.js';
 import { validarCampo } from './validacion.js';
 import { pintarTurnos } from './selector-turnos.js';
+import {
+  abrirPanel,
+  aparecerAviso,
+  cargando,
+  entrarTarjeta,
+  escalonar,
+  llevarALaVista,
+  movimientoReducido,
+  quitarEscalonado,
+  realzarCampos,
+  reiniciarClase,
+  sacudir,
+} from './movimiento.js';
 
 const VENTANA_DIAS = 14;
 const MAX_DIAS_ADELANTE = 90;
@@ -41,11 +54,42 @@ function errorCampo(idBase, texto) {
   if (campo) campo.setAttribute('aria-invalid', texto ? 'true' : 'false');
 }
 
-function mostrarSolo(vista) {
+const PANELES = { acciones: 'acciones', cancelar: 'confirmar-cancelacion', reprogramar: 'reprogramar' };
+
+function mostrarSolo(vista, { animar = false } = {}) {
   // vista: 'acciones' | 'cancelar' | 'reprogramar' | 'ninguna'
-  $('acciones').hidden = vista !== 'acciones';
-  $('confirmar-cancelacion').hidden = vista !== 'cancelar';
-  $('reprogramar').hidden = vista !== 'reprogramar';
+  for (const [nombre, id] of Object.entries(PANELES)) $(id).hidden = vista !== nombre;
+  if (animar && PANELES[vista]) abrirPanel($(PANELES[vista]));
+}
+
+/** Error de acceso: la MISMA sacudida y el mismo fundido para cualquier error (no revela nada). */
+function avisarErrorAcceso(mensaje) {
+  mostrarAviso($('aviso-acceso'), mensaje);
+  sacudir($('form-acceso'));
+  aparecerAviso($('aviso-acceso'));
+}
+
+/** Marca que se dibuja en la confirmación (decorativa; la crea el JS). */
+function marcaConfirmacion(tipo) {
+  const vieja = document.getElementById('conf-marca');
+  vieja?.remove();
+  const NS = 'http://www.w3.org/2000/svg';
+  const svg = document.createElementNS(NS, 'svg');
+  svg.id = 'conf-marca';
+  svg.setAttribute('viewBox', '0 0 48 48');
+  svg.setAttribute('aria-hidden', 'true');
+  svg.setAttribute('class', `marca-confirmacion ${tipo === 'ok' ? 'text-salvia' : 'text-error'}`);
+  const trazos = tipo === 'ok' ? ['M15 24.5l6 6 12-13'] : ['M18 18l12 12', 'M30 18L18 30'];
+  const circulo = document.createElementNS(NS, 'circle');
+  Object.entries({ cx: 24, cy: 24, r: 20, pathLength: 1 }).forEach(([k, v]) => circulo.setAttribute(k, v));
+  svg.append(circulo);
+  for (const d of trazos) {
+    const ruta = document.createElementNS(NS, 'path');
+    ruta.setAttribute('d', d);
+    ruta.setAttribute('pathLength', '1');
+    svg.append(ruta);
+  }
+  $('conf-etiqueta').before(svg);
 }
 
 function limpiarMensajes() {
@@ -60,6 +104,10 @@ function mostrarPantalla(cual) {
   $('vista-principal').hidden = cual !== 'principal';
   $('confirmacion').hidden = cual !== 'confirmacion';
   window.scrollTo(0, 0);
+  if (cual === 'confirmacion') {
+    entrarTarjeta($('confirmacion').firstElementChild);
+    escalonar($('conf-detalle'), 'entra-escalonado', { grupo: 2 });
+  }
 }
 
 function confirmacionReprogramada(r) {
@@ -77,6 +125,7 @@ function confirmacionReprogramada(r) {
   $('conf-correo-fallo').hidden = r.correoEnviado;
   $('conf-ver-cita').hidden = false;
   $('conf-agendar').hidden = true;
+  marcaConfirmacion('ok');
   mostrarPantalla('confirmacion');
   $('conf-titulo').focus();
 }
@@ -96,6 +145,7 @@ function confirmacionCancelada(cita) {
   $('conf-correo-fallo').hidden = true;
   $('conf-ver-cita').hidden = true;
   $('conf-agendar').hidden = false;
+  marcaConfirmacion('cancelada');
   mostrarPantalla('confirmacion');
   $('conf-titulo').focus();
 }
@@ -105,6 +155,7 @@ $('conf-ver-cita').addEventListener('click', () => {
   limpiarMensajes();
   mostrarSolo('acciones');
   mostrarPantalla('principal');
+  entrarTarjeta($('panel-cita'));
   $('cita-servicio').focus();
 });
 
@@ -120,17 +171,36 @@ function accesoExpirado(err) {
 // ---------------------------------------------------------------------------
 // Tarjeta de la cita
 // ---------------------------------------------------------------------------
-function pintarCita() {
+function pintarCita({ entrada = false } = {}) {
   const c = estado.cita;
   const info = ESTADOS[c.estado] ?? { texto: c.estado, clase: 'bg-tinta/10 text-tinta' };
   $('cita-servicio').textContent = c.servicio;
   const etiqueta = $('cita-estado');
+  const anterior = etiqueta.textContent && etiqueta.textContent !== info.texto && !$('panel-cita').hidden ? etiqueta.cloneNode(true) : null;
   etiqueta.textContent = info.texto;
   etiqueta.className = `rounded-full px-3 py-1 text-sm font-bold ${info.clase}`;
+  if (entrada) reiniciarClase(etiqueta, 'insignia-aparece');
+  if (anterior && !movimientoReducido()) {
+    // Fundido entre insignias: la anterior se desvanece encima de la nueva.
+    anterior.removeAttribute('id');
+    anterior.setAttribute('aria-hidden', 'true');
+    anterior.classList.add('insignia-saliente');
+    // Encima de la nueva (sin ocupar espacio en la fila).
+    etiqueta.parentElement.style.position = 'relative';
+    anterior.style.left = `${etiqueta.offsetLeft}px`;
+    anterior.style.top = `${etiqueta.offsetTop}px`;
+    etiqueta.after(anterior);
+    anterior.addEventListener('animationend', () => anterior.remove(), { once: true });
+    reiniciarClase(etiqueta, 'insignia-aparece');
+  }
   $('cita-paciente').textContent = c.paciente;
   $('cita-dia').textContent = formatearFecha(c.fecha);
   $('cita-hora').textContent = `${c.horaInicio} a ${c.horaFin}`;
   $('cita-codigo').textContent = c.codigo;
+  if (entrada) {
+    escalonar($('panel-cita').querySelector('dl'), 'entra-escalonado', { grupo: 2 });
+    reiniciarClase($('cita-codigo'), 'codigo-destello');
+  }
 }
 
 // ---------------------------------------------------------------------------
@@ -144,6 +214,7 @@ $('form-acceso').addEventListener('submit', async (evento) => {
   errorCampo('cedula', cedula.error);
   errorCampo('codigo', codigo.error);
   if (cedula.error || codigo.error) {
+    sacudir($('form-acceso'));
     $(cedula.error ? 'cedula' : 'codigo').focus();
     return;
   }
@@ -153,15 +224,19 @@ $('form-acceso').addEventListener('submit', async (evento) => {
   const boton = $('buscar');
   boton.disabled = true;
   boton.textContent = 'Buscando…';
+  cargando(boton, true);
   try {
     const r = await api('/citas/acceso', { metodo: 'POST', cuerpo: { cedula: cedula.valor, codigo: codigo.valor } });
     estado.token = r.tokenCita;
     estado.cita = r.cita;
     limpiarMensajes();
-    pintarCita();
+    const yaVisible = !$('panel-cita').hidden;
+    pintarCita({ entrada: true });
     mostrarSolo('acciones');
     $('panel-cita').hidden = false;
-    $('cita-servicio').focus();
+    if (!yaVisible) entrarTarjeta($('panel-cita'));
+    $('cita-servicio').focus({ preventScroll: true });
+    llevarALaVista($('panel-cita'));
   } catch (err) {
     estado.token = null;
     $('panel-cita').hidden = true;
@@ -169,8 +244,9 @@ $('form-acceso').addEventListener('submit', async (evento) => {
       for (const d of err.detalles) if (d.campo === 'cedula' || d.campo === 'codigo') errorCampo(d.campo, d.mensaje);
     }
     // ACCESO_DENEGADO, ACCESO_BLOQUEADO, CITA_NO_MODIFICABLE, DEMASIADAS_PETICIONES…
-    mostrarAviso($('aviso-acceso'), err.message);
+    avisarErrorAcceso(err.message);
   } finally {
+    cargando(boton, false);
     boton.disabled = false;
     boton.textContent = 'Buscar mi cita';
   }
@@ -181,13 +257,13 @@ $('form-acceso').addEventListener('submit', async (evento) => {
 // ---------------------------------------------------------------------------
 function abrirCancelar() {
   limpiarMensajes();
-  mostrarSolo('cancelar');
+  mostrarSolo('cancelar', { animar: true });
   $('titulo-cancelar').focus();
 }
 
 function volverAAcciones() {
   // A2: la paciente desiste; la cita no cambia.
-  mostrarSolo('acciones');
+  mostrarSolo('acciones', { animar: true });
   $('abrir-reprogramar').focus();
 }
 
@@ -198,6 +274,7 @@ $('no-cancelar').addEventListener('click', volverAAcciones);
 $('si-cancelar').addEventListener('click', async () => {
   const boton = $('si-cancelar');
   boton.disabled = true;
+  cargando(boton, true);
   try {
     const r = await api(`/citas/${encodeURIComponent(estado.cita.codigo)}/cancelacion`, { metodo: 'POST', token: estado.token });
     estado.cita = r.cita;
@@ -208,7 +285,9 @@ $('si-cancelar').addEventListener('click', async () => {
     if (ERRORES_DE_TOKEN.includes(err.codigo)) return accesoExpirado(err);
     if (err.codigo === 'CITA_NO_MODIFICABLE') mostrarSolo('ninguna');
     mostrarAviso($('aviso-cita'), err.message);
+    aparecerAviso($('aviso-cita'));
   } finally {
+    cargando(boton, false);
     boton.disabled = false;
   }
   return undefined;
@@ -221,17 +300,20 @@ function limiteHasta() {
   return sumarDias(estado.hoy, MAX_DIAS_ADELANTE);
 }
 
-function pintar(turnos) {
+function pintar(turnos, { entrada = false, recienElegido = null } = {}) {
+  quitarEscalonado($('lista-turnos'));
   pintarTurnos($('lista-turnos'), turnos, {
     seleccionadoId: estado.turno?.id ?? null,
+    recienElegidoId: recienElegido,
     actual: { fecha: estado.cita.fecha, horaInicio: estado.cita.horaInicio },
     alElegir: (t) => {
       estado.turno = t;
       errorCampo('turno', null);
-      pintar(turnos);
+      pintar(turnos, { recienElegido: t.id });
       $('confirmar-reprogramar').focus();
     },
   });
+  if (entrada) escalonar($('lista-turnos'));
 }
 
 async function cargarTurnos() {
@@ -246,7 +328,7 @@ async function cargarTurnos() {
     const params = new URLSearchParams({ servicioId: estado.cita.servicioId, desde: estado.desde, hasta });
     const turnos = await api(`/turnos?${params}`);
     if (estado.turno && turnos.some((t) => t.id === estado.turno.id && !t.disponible)) estado.turno = null;
-    pintar(turnos);
+    pintar(turnos, { entrada: true });
   } catch (err) {
     lista.replaceChildren(el('p', { class: 'text-error' }, err.message));
   } finally {
@@ -260,7 +342,7 @@ function abrirReprogramar() {
   estado.desde = estado.hoy;
   estado.turno = null;
   errorCampo('turno', null);
-  mostrarSolo('reprogramar');
+  mostrarSolo('reprogramar', { animar: true });
   $('titulo-reprogramar').focus();
   cargarTurnos();
 }
@@ -290,6 +372,7 @@ $('confirmar-reprogramar').addEventListener('click', async () => {
   estado.ocupado = true;
   boton.disabled = true;
   boton.textContent = 'Guardando…';
+  cargando(boton, true);
   try {
     const r = await api(`/citas/${encodeURIComponent(estado.cita.codigo)}`, {
       metodo: 'PATCH',
@@ -316,8 +399,12 @@ $('confirmar-reprogramar').addEventListener('click', async () => {
     }
   } finally {
     estado.ocupado = false;
+    cargando(boton, false);
     boton.disabled = false;
     boton.textContent = 'Confirmar nuevo horario';
   }
   return undefined;
 });
+
+// Resalte suave al enfocar la cédula y el código.
+realzarCampos($('form-acceso'));

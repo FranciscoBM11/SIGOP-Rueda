@@ -4,6 +4,17 @@
 // ingresar los datos (importante en dispositivos compartidos).
 import { api, descargarArchivo, el, formatearFecha, formatearTamano, mostrarAviso } from './api.js';
 import { validarCampo } from './validacion.js';
+import {
+  aparecerAviso,
+  cargando,
+  entrarTarjeta,
+  escalonar,
+  llevarALaVista,
+  realzarCampos,
+  reiniciarClase,
+  sacudir,
+  salirConFundido,
+} from './movimiento.js';
 
 const $ = (id) => document.getElementById(id);
 const ERRORES_DE_TOKEN = ['TOKEN_INVALIDO', 'TOKEN_REQUERIDO'];
@@ -22,9 +33,16 @@ function errorCampo(id, texto) {
 /** Vuelve al formulario (salida voluntaria o token vencido). */
 function cerrarResultados(mensaje) {
   estado.token = null;
-  $('panel-resultados').hidden = true;
-  $('lista-informes').replaceChildren();
+  const panel = $('panel-resultados');
+  const terminar = () => {
+    if (estado.token) return; // se volvió a consultar durante el fundido: no ocultar lo nuevo
+    panel.hidden = true;
+    $('lista-informes').replaceChildren();
+  };
+  if (panel.hidden) terminar();
+  else salirConFundido(panel, terminar);
   mostrarAviso($('aviso-acceso'), mensaje ?? '');
+  aparecerAviso($('aviso-acceso'));
   $('cedula').focus();
 }
 
@@ -34,15 +52,21 @@ function tarjetaInforme(informe) {
     mostrarAviso($('aviso-resultados'), '');
     boton.disabled = true;
     boton.textContent = 'Descargando…';
+    cargando(boton, true);
     try {
       await descargarArchivo(`/resultados/${informe.id}/archivo`, { token: estado.token, nombre: informe.nombre });
+      // Confirmación sutil: la tarjeta destella y el botón da un pulso.
+      reiniciarClase(boton.closest('li'), 'fila-destello');
+      reiniciarClase(boton, 'turno-recien-elegido');
     } catch (err) {
       if (ERRORES_DE_TOKEN.includes(err.codigo)) {
         cerrarResultados(err.message);
         return;
       }
       mostrarAviso($('aviso-resultados'), err.message); // E4 y otros
+      aparecerAviso($('aviso-resultados'));
     } finally {
+      cargando(boton, false);
       boton.disabled = false;
       boton.textContent = 'Descargar';
     }
@@ -50,7 +74,7 @@ function tarjetaInforme(informe) {
 
   return el(
     'li',
-    { class: 'flex flex-wrap items-center gap-3 rounded-lg border border-tinta/10 p-4 sm:flex-nowrap' },
+    { class: 'tarjeta-informe flex flex-wrap items-center gap-3 rounded-lg border border-tinta/10 bg-white p-4 sm:flex-nowrap' },
     el('span', { class: 'flex h-12 w-11 shrink-0 items-center justify-center rounded bg-error text-sm font-bold text-white', 'aria-hidden': 'true' }, 'PDF'),
     el(
       'span',
@@ -67,8 +91,13 @@ function pintarResultados({ cita, informes }) {
   mostrarAviso($('aviso-resultados'), '');
   $('sin-informes').hidden = informes.length > 0; // E3
   $('lista-informes').replaceChildren(...informes.map(tarjetaInforme));
+  const yaVisible = !$('panel-resultados').hidden;
   $('panel-resultados').hidden = false;
-  $('titulo-resultados').focus();
+  if (!yaVisible) entrarTarjeta($('panel-resultados'));
+  escalonar($('lista-informes'));
+  if (informes.length === 0) reiniciarClase($('sin-informes'), 'vacio-entra');
+  $('titulo-resultados').focus({ preventScroll: true });
+  llevarALaVista($('panel-resultados'));
 }
 
 $('form-acceso').addEventListener('submit', async (evento) => {
@@ -79,6 +108,7 @@ $('form-acceso').addEventListener('submit', async (evento) => {
   errorCampo('cedula', cedula.error);
   errorCampo('codigo', codigo.error);
   if (cedula.error || codigo.error) {
+    sacudir($('form-acceso'));
     $(cedula.error ? 'cedula' : 'codigo').focus();
     return;
   }
@@ -88,6 +118,7 @@ $('form-acceso').addEventListener('submit', async (evento) => {
   const boton = $('buscar');
   boton.disabled = true;
   boton.textContent = 'Buscando…';
+  cargando(boton, true);
   try {
     const r = await api('/resultados/consulta', { metodo: 'POST', cuerpo: { cedula: cedula.valor, codigo: codigo.valor } });
     estado.token = r.tokenCita;
@@ -99,8 +130,12 @@ $('form-acceso').addEventListener('submit', async (evento) => {
       for (const d of err.detalles) if (d.campo === 'cedula' || d.campo === 'codigo') errorCampo(d.campo, d.mensaje);
     }
     // ACCESO_DENEGADO (E1), ACCESO_BLOQUEADO (E2), DEMASIADAS_PETICIONES…
+    // La MISMA sacudida y el mismo fundido para cualquier error (no revela si la cédula existe).
     mostrarAviso($('aviso-acceso'), err.message);
+    sacudir($('form-acceso'));
+    aparecerAviso($('aviso-acceso'));
   } finally {
+    cargando(boton, false);
     boton.disabled = false;
     boton.textContent = 'Ver mis resultados';
   }
@@ -112,3 +147,6 @@ $('salir').addEventListener('click', () => {
   $('codigo').value = '';
   cerrarResultados();
 });
+
+// Resalte suave al enfocar la cédula y el código.
+realzarCampos($('form-acceso'));

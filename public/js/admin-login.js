@@ -1,6 +1,7 @@
 // A1 – Iniciar sesión (CU-10). Mensaje genérico ante credenciales inválidas
 // (E1) y aviso con el tiempo restante si la cuenta está bloqueada (E2, E3).
 import { api, mostrarAviso } from './api.js';
+import { ocultarContrasenas } from './ojo-contrasena.js';
 
 const $ = (id) => document.getElementById(id);
 const DESTINO = '/admin/agenda.html';
@@ -53,6 +54,7 @@ async function enviar(evento) {
       mostrarAviso($('aviso'), err.message);
     }
     $('contrasena').value = '';
+    ocultarContrasenas($('form-login')); // si falla, la contraseña vuelve a ocultarse
     $('contrasena').focus();
     boton.disabled = false;
     boton.textContent = 'Iniciar sesión';

@@ -70,7 +70,7 @@
       <!-- CU-08: acceso con cédula y código -->
       <section class="rounded-lg bg-white p-5 shadow-sm" aria-labelledby="titulo-acceso">
         <h2 id="titulo-acceso" class="sr-only">Buscar mi cita</h2>
-        <form id="form-acceso" class="grid gap-4" autocomplete="off" novalidate>
+        <form id="form-acceso" class="entrada-campos grid gap-4" autocomplete="off" novalidate>
           <div>
             <label for="cedula" class="block font-bold">Cédula</label>
             <input id="cedula" name="cedula" autocomplete="off" maxlength="16" placeholder="001-150390-0012K"
@@ -88,7 +88,7 @@
         </form>
         <p id="aviso-acceso" role="alert" class="mt-4 rounded-lg border border-error bg-white p-3 text-error" hidden></p>
         <p class="mt-4 text-sm text-tinta-2">Por tu seguridad, después de 5 intentos fallidos el acceso se bloquea 15 minutos.</p>
-        <a href="/" class="mt-2 inline-flex min-h-11 items-center font-bold text-primario underline">← Volver al inicio</a>
+        <a href="/" class="enlace-salida mt-2 inline-flex min-h-11 items-center font-bold text-primario underline">← Volver al inicio</a>
       </section>
 
       <!-- Tarjeta de la cita (CU-06 paso 3, CU-07 paso 3) -->
@@ -109,8 +109,8 @@
         <!-- Acciones -->
         <div id="acciones" class="mt-5">
           <div class="flex flex-wrap gap-3">
-            <button type="button" id="abrir-reprogramar" class="min-h-11 rounded-lg bg-primario px-5 font-bold text-white hover:bg-tinta-2">Cambiar día u hora</button>
-            <button type="button" id="abrir-cancelar" class="min-h-11 rounded-lg border border-error bg-white px-5 font-bold text-error hover:bg-error/5">Cancelar cita</button>
+            <button type="button" id="abrir-reprogramar" class="boton-eleva min-h-11 rounded-lg bg-primario px-5 font-bold text-white hover:bg-tinta-2">Cambiar día u hora</button>
+            <button type="button" id="abrir-cancelar" class="boton-eleva min-h-11 rounded-lg border border-error bg-white px-5 font-bold text-error hover:bg-error/5">Cancelar cita</button>
           </div>
           <p class="mt-3 text-sm text-tinta-2">Si cambias la hora, conservas el mismo código y te enviamos el nuevo horario por correo.</p>
         </div>
@@ -151,7 +151,7 @@
         </div>
 
         <div class="mt-5 border-t border-tinta/10 pt-3">
-          <a href="/" class="inline-flex min-h-11 items-center font-bold text-primario underline">← Volver al inicio</a>
+          <a href="/" class="enlace-salida inline-flex min-h-11 items-center font-bold text-primario underline">← Volver al inicio</a>
         </div>
       </section>
     </div>

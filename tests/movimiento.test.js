@@ -153,7 +153,7 @@ describe('CSS de movimiento', () => {
   test('las entradas no dejan «fill: both» (crearía capas que tapan los paneles de servicio)', () => {
     const conBoth = [...css.matchAll(/animation:\s*([\w-]+)[^;]*\bboth;/g)].map((m) => m[1]);
     // Solo las ligadas al scroll (sostienen su valor) y la insignia que sale (se retira del DOM).
-    expect(conBoth.sort()).toEqual(['insignia-sale', 'parallax-fondo', 'progreso-lectura']);
+    expect(conBoth.sort()).toEqual(['insignia-sale', 'insignia-sale', 'parallax-fondo', 'progreso-lectura']);
   });
 
   test('las líneas de tiempo de scroll solo se usan si el navegador las soporta', () => {
@@ -358,5 +358,204 @@ describe('Agendar, calculadora y agenda del personal', () => {
 
   test('menú «⋯» y diálogos se abren con suavidad', () => {
     expect(leer('js/admin-agenda.js')).toContain('panel.style.transformOrigin');
+  });
+});
+
+describe('Mostrar/ocultar contraseña (ojo)', () => {
+  /** Campo y botón falsos con lo mínimo que usa el módulo. */
+  function campo(tipo = 'password') {
+    const atributos = { autocomplete: 'new-password', name: 'contrasena' };
+    const input = {
+      type: tipo,
+      selectionStart: 3,
+      selectionEnd: 3,
+      ownerDocument: { activeElement: null },
+      getAttribute: (k) => atributos[k],
+      setSelectionRange: jest.fn(),
+    };
+    input.ownerDocument.activeElement = input;
+    const boton = {
+      attrs: {},
+      setAttribute(k, v) {
+        this.attrs[k] = v;
+      },
+    };
+    return { input, boton, atributos };
+  }
+  const { alternar, fijarVisible } = cargarModulo('ojo-contrasena.js', { document: undefined });
+
+  test('el botón alterna el type entre password y text, con aria-pressed y aria-label', () => {
+    const { input, boton } = campo();
+    fijarVisible(input, boton, false);
+    expect(input.type).toBe('password');
+    expect(boton.attrs).toEqual({ 'aria-pressed': 'false', 'aria-label': 'Mostrar contraseña' });
+    expect(alternar(input, boton)).toBe(true);
+    expect(input.type).toBe('text');
+    expect(boton.attrs).toEqual({ 'aria-pressed': 'true', 'aria-label': 'Ocultar contraseña' });
+    expect(alternar(input, boton)).toBe(false);
+    expect(input.type).toBe('password');
+    expect(boton.attrs['aria-label']).toBe('Mostrar contraseña');
+  });
+
+  test('conserva la posición del cursor y no toca name ni autocomplete', () => {
+    const { input, boton, atributos } = campo();
+    alternar(input, boton);
+    expect(input.setSelectionRange).toHaveBeenCalledWith(3, 3);
+    expect(atributos).toEqual({ autocomplete: 'new-password', name: 'contrasena' });
+    const fuente = leer('js/ojo-contrasena.js').replace(/\/\/.*$/gm, '');
+    expect(fuente).not.toMatch(/autocomplete|\.name\s*=|setAttribute\('name'/);
+  });
+
+  test('es un <button type="button"> de 44 px dentro del campo y se oculta al enviar', () => {
+    const fuente = leer('js/ojo-contrasena.js');
+    expect(fuente).toContain("boton.type = 'button'");
+    expect(fuente).toContain("input.form?.addEventListener('submit', () => fijarVisible(input, boton, false))");
+    expect(css).toMatch(/\.boton-ojo \{[^}]*width: 2\.75rem;[^}]*min-height: 2\.75rem;/);
+    // El ícono cambia con una transición suave (opacidad y transform).
+    expect(css).toMatch(/\.boton-ojo svg \{[^}]*transition: opacity 200ms ease-out, transform 200ms/);
+  });
+
+  test('login del personal: la contraseña sigue con new-password, carga el ojo y al fallar se oculta', () => {
+    const html = leer('admin/login.html');
+    expect(html).toMatch(/<input id="contrasena" name="contrasena" type="password" autocomplete="new-password"/);
+    expect(html).toContain('<script type="module" src="/js/ojo-contrasena.js"></script>');
+    expect(leer('js/admin-login.js')).toContain("ocultarContrasenas($('form-login'))");
+  });
+
+  test('el código de cita ya se ve en claro: Mi cita y Resultados no llevan ojo', () => {
+    for (const pagina of ['mi-cita.html', 'resultados.html']) {
+      const html = leer(pagina);
+      expect(html).not.toContain('type="password"');
+      expect(html).toMatch(/<input id="codigo" name="codigo" autocomplete="off"/);
+    }
+  });
+});
+
+describe('Mi cita y Resultados: acceso', () => {
+  test('el error de acceso usa la misma sacudida y el mismo mensaje para cualquier código', () => {
+    for (const archivo of ['js/mi-cita.js', 'js/resultados.js']) {
+      const js = leer(archivo);
+      // El mensaje sigue siendo el del servidor, sin variantes por código.
+      expect(js).toMatch(/mostrarAviso\(\$\('aviso-acceso'\), (err\.message|mensaje)\)/);
+      // Ninguna animación depende de si la cédula existe o de si hubo bloqueo.
+      expect(js).not.toMatch(/if \([^)]*ACCESO_/);
+    }
+  });
+
+  test('formularios con entrada escalonada, resalte de foco y carga en el botón', () => {
+    for (const [pagina, js] of [
+      ['mi-cita.html', 'js/mi-cita.js'],
+      ['resultados.html', 'js/resultados.js'],
+    ]) {
+      expect(leer(pagina)).toContain('<form id="form-acceso" class="entrada-campos grid gap-4" autocomplete="off" novalidate>');
+      const fuente = leer(js);
+      expect(fuente).toContain("realzarCampos($('form-acceso'))");
+      expect(fuente).toContain('cargando(boton, true)');
+      expect(fuente).toContain('cargando(boton, false)');
+    }
+    // El resalte solo reemplaza el contorno del navegador donde :has() existe.
+    expect(css).toMatch(/\.con-halo:has\(> input:focus-visible\) > input:focus-visible \{\s*outline: none;/);
+  });
+
+  test('Mi cita: la tarjeta entra, los datos por pares, insignia y código con su efecto', () => {
+    const js = leer('js/mi-cita.js');
+    expect(js).toContain("entrarTarjeta($('panel-cita'))");
+    expect(js).toContain("escalonar($('panel-cita').querySelector('dl'), 'entra-escalonado', { grupo: 2 })");
+    expect(js).toContain("reiniciarClase(etiqueta, 'insignia-aparece')");
+    expect(js).toContain("reiniciarClase($('cita-codigo'), 'codigo-destello')");
+    expect(js).toContain("marcaConfirmacion('ok')");
+    expect(js).toContain("marcaConfirmacion('cancelada')");
+    expect(js).toMatch(/pintar\(turnos, \{ recienElegido: t\.id \}\)/);
+  });
+
+  test('Resultados: informes escalonados, descarga con confirmación, vacío con ícono y salida con fundido', () => {
+    const js = leer('js/resultados.js');
+    expect(js).toContain("escalonar($('lista-informes'))");
+    expect(js).toContain("reiniciarClase(boton.closest('li'), 'fila-destello')");
+    expect(js).toContain("reiniciarClase($('sin-informes'), 'vacio-entra')");
+    expect(js).toContain('salirConFundido(panel, terminar)');
+    // El token se borra antes del fundido.
+    const cerrar = js.slice(js.indexOf('function cerrarResultados'));
+    expect(cerrar.indexOf('estado.token = null')).toBeLessThan(cerrar.indexOf('salirConFundido'));
+    const html = leer('resultados.html');
+    expect(html).toContain('Tus resultados aún no están disponibles. Cuando la clínica los suba podrás descargarlos aquí con los mismos datos.');
+    expect(html).toMatch(/class="icono-vacio [^"]*"><path pathLength="1"/);
+  });
+});
+
+describe('movimiento.js: utilidades de acceso', () => {
+  function modulo(reducido) {
+    return cargarModulo('movimiento.js', { window: { matchMedia: () => ({ matches: reducido }) } });
+  }
+
+  test('salirConFundido: sin animación termina de inmediato; con animación, al acabar el fundido', async () => {
+    const fin1 = jest.fn();
+    modulo(true).salirConFundido({ animate: jest.fn() }, fin1);
+    expect(fin1).toHaveBeenCalledTimes(1);
+
+    const fin2 = jest.fn();
+    let resolver;
+    const nodo = {
+      animate: jest.fn(() => ({
+        finished: new Promise((r) => {
+          resolver = r;
+        }),
+      })),
+    };
+    modulo(false).salirConFundido(nodo, fin2);
+    expect(fin2).not.toHaveBeenCalled();
+    resolver();
+    await new Promise((r) => setTimeout(r, 0));
+    expect(fin2).toHaveBeenCalledTimes(1);
+    expect(nodo.animate.mock.calls[0][1].duration).toBeLessThanOrEqual(250);
+  });
+
+  test('sacudida corta (≤ 250 ms, ±6 px) y respuestas a clics en 150–250 ms', () => {
+    const { sacudir, aparecerAviso, abrirPanel } = modulo(false);
+    const nodo = { hidden: false, animate: jest.fn(() => ({})) };
+    sacudir(nodo);
+    aparecerAviso(nodo);
+    abrirPanel(nodo);
+    const [sacudida, aviso, panel] = nodo.animate.mock.calls;
+    expect(sacudida[1].duration).toBeLessThanOrEqual(250);
+    const desplazamientos = sacudida[0].map((f) => Math.abs(Number.parseFloat(f.transform.match(/-?[\d.]+/)[0])));
+    expect(Math.max(...desplazamientos)).toBeLessThanOrEqual(6);
+    for (const llamada of [aviso, panel]) {
+      expect(llamada[1].duration).toBeGreaterThanOrEqual(150);
+      expect(llamada[1].duration).toBeLessThanOrEqual(250);
+    }
+  });
+
+  test('cargando marca el botón con data-cargando y aria-busy', () => {
+    const { cargando } = modulo(false);
+    const attrs = {};
+    const boton = {
+      toggleAttribute: (k, v) => {
+        if (v) attrs[k] = '';
+        else delete attrs[k];
+      },
+      setAttribute: (k, v) => {
+        attrs[k] = v;
+      },
+    };
+    cargando(boton, true);
+    expect(attrs).toEqual({ 'data-cargando': '', 'aria-busy': 'true' });
+    cargando(boton, false);
+    expect(attrs).toEqual({ 'aria-busy': 'false' });
+  });
+
+  test('escalonar por pares: cada <dt> entra con su <dd>', () => {
+    const { escalonar } = modulo(false);
+    const hijos = Array.from({ length: 8 }, () => ({
+      style: {
+        valores: {},
+        setProperty(k, v) {
+          this.valores[k] = v;
+        },
+      },
+    }));
+    const contenedor = { children: hijos, offsetWidth: 0, classList: { add() {}, remove() {} } };
+    escalonar(contenedor, 'entra-escalonado', { grupo: 2 });
+    expect(hijos.map((h) => h.style.valores['--i'])).toEqual(['0', '0', '1', '1', '2', '2', '3', '3']);
   });
 });

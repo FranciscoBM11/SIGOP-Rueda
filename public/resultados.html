@@ -69,7 +69,7 @@
       <!-- CU-08: acceso con cédula y código -->
       <section class="rounded-lg bg-white p-5 shadow-sm" aria-labelledby="titulo-acceso">
         <h2 id="titulo-acceso" class="sr-only">Consultar mis resultados</h2>
-        <form id="form-acceso" class="grid gap-4" autocomplete="off" novalidate>
+        <form id="form-acceso" class="entrada-campos grid gap-4" autocomplete="off" novalidate>
           <div>
             <label for="cedula" class="block font-bold">Cédula</label>
             <input id="cedula" name="cedula" autocomplete="off" maxlength="16" placeholder="001-150390-0012K"
@@ -87,7 +87,7 @@
         </form>
         <p id="aviso-acceso" role="alert" class="mt-4 rounded-lg border border-error bg-white p-3 text-error" hidden></p>
         <p class="mt-4 text-sm text-tinta-2">Por tu seguridad, después de 5 intentos fallidos el acceso se bloquea 15 minutos.</p>
-        <a href="/" class="mt-2 inline-flex min-h-11 items-center font-bold text-primario underline">← Volver al inicio</a>
+        <a href="/" class="enlace-salida mt-2 inline-flex min-h-11 items-center font-bold text-primario underline">← Volver al inicio</a>
       </section>
 
       <!-- CU-09: lista de informes (P5, Figura 22) -->
@@ -96,15 +96,17 @@
         <p id="resultados-cita" class="mt-1 text-tinta-2"></p>
 
         <p id="aviso-resultados" role="alert" class="mt-4 rounded-lg border border-error bg-white p-3 text-error" hidden></p>
-        <p id="sin-informes" class="mt-4 rounded-lg border border-acento bg-acento/15 p-4" hidden>
-          Tus resultados aún no están disponibles. Cuando la clínica los suba podrás descargarlos aquí con los mismos datos.
+        <p id="sin-informes" class="mt-4 flex items-start gap-3 rounded-lg border border-acento bg-acento/15 p-4" hidden>
+          <!-- Ícono de línea (documento en espera): se dibuja al aparecer el estado vacío. -->
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" class="icono-vacio mt-0.5 h-7 w-7 shrink-0 text-tinta-2"><path pathLength="1" d="M13 3H6.5A1.5 1.5 0 0 0 5 4.5v15A1.5 1.5 0 0 0 6.5 21H11"/><path pathLength="1" d="M13 3v5h5v2.5"/><circle pathLength="1" cx="17" cy="17" r="4"/><path pathLength="1" d="M17 15v2l1.2 1.2"/></svg>
+          <span>Tus resultados aún no están disponibles. Cuando la clínica los suba podrás descargarlos aquí con los mismos datos.</span>
         </p>
         <ul id="lista-informes" class="mt-4 grid gap-3"></ul>
 
         <p class="mt-4 text-sm text-tinta-2">El acceso a esta página vence en 15 minutos. Para volver a entrar, usa tu cédula y tu código.</p>
         <div class="mt-4 flex flex-col gap-3 sm:flex-row">
           <button type="button" id="salir" class="min-h-11 rounded-lg border border-tinta/30 bg-white px-5 font-bold hover:bg-bruma">Consultar otra cita</button>
-          <a href="/" class="inline-flex min-h-11 items-center justify-center font-bold text-primario underline">← Volver al inicio</a>
+          <a href="/" class="enlace-salida inline-flex min-h-11 items-center justify-center font-bold text-primario underline">← Volver al inicio</a>
         </div>
       </section>
     </div>

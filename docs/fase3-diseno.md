@@ -650,12 +650,13 @@ Las pantallas de esta sección son maquetas de alta fidelidad hechas en HTML y C
 El movimiento hace el sitio más vivo sin dejar de ser tranquilo, como corresponde a una clínica: explica qué pasó (respuesta a un toque, de dónde viene un panel, qué cambió) y acompaña la lectura. Se implementa con CSS y JavaScript propios, sin librerías (`public/css/tailwind.css`, bloque «Movimiento y microinteracciones»; `public/js/movimiento.js` y `public/js/revelar.js`).
 
 **Reglas:**
-- **Propiedades:** se animan solo `transform` y `opacity`. Hay dos excepciones justificadas. El ancho del menú lateral al encogerse en escritorio, porque el contenido debe reacomodarse. Y el trazo (`stroke-dashoffset`) de los cuatro íconos de servicio, que se dibujan una sola vez; son 24 px y su costo de pintado es mínimo.
+- **Propiedades:** se animan solo `transform` y `opacity`. Hay dos excepciones justificadas. El ancho del menú lateral al encogerse en escritorio, porque el contenido debe reacomodarse. Y el trazo (`stroke-dashoffset`) de íconos pequeños de línea que se dibujan una sola vez (servicios, estado vacío de Resultados y marca de confirmación de Mi cita); su costo de pintado es mínimo.
 - **Tiempos:** las respuestas a un clic duran de 150 a 350 ms (`--dur-presion` 150, `--dur-corta` 200, `--dur-media` 320) con salida exponencial `cubic-bezier(0.16, 1, 0.3, 1)`. Las entradas de página y de scroll duran de 600 a 900 ms (`--dur-larga` 800, `--dur-lenta` 900) con un desplazamiento de 24 a 40 px (`--dist-entrada` 32) y desaceleración suave `cubic-bezier(0.22, 1, 0.36, 1)`.
 - **Estado por defecto visible:** si el JavaScript falla, la página se ve completa. Las entradas usan `animation-fill-mode: backwards` para no dejar capas que tapen paneles o botones. Las capas decorativas no reciben clics y van detrás del texto.
 - **Movimiento reducido:** con `prefers-reduced-motion: reduce` no hay movimiento, nada queda oculto y se quitan las capas decorativas (cortina, brillo, parallax, barra de lectura, indicador del menú).
 - **Teléfono:** los efectos al pasar el cursor solo aplican con mouse (`hover: hover` y `pointer: fine`). Se quitó el destello gris del navegador al tocar y se usa `touch-action: manipulation`. No hay animaciones al escribir en los formularios.
-- **Bucles:** solo hay dos, ambos lentos. El afiche flota en un ciclo de 7 s y se pausa cuando el hero sale de la pantalla. El brillo de «Agendar cita» cruza el botón en 1 s cada 7 s.
+- **Bucles:** solo hay dos decorativos, ambos lentos. El afiche flota en un ciclo de 7 s y se pausa cuando el hero sale de la pantalla. El brillo de «Agendar cita» cruza el botón en 1 s cada 7 s. El anillo de «cargando» gira solo mientras se espera una respuesta.
+- **Acceso seguro:** en Mi cita y Resultados, cualquier error de acceso produce la misma sacudida (250 ms, ±6 px) y el mismo fundido del mensaje. Ninguna animación depende del código de error, así que no revelan si una cédula existe ni distinguen un rechazo de un bloqueo. Los textos, los mensajes y los límites de intentos no cambian.
 
 **Dónde hay movimiento:**
 - **Hero (P1):**
@@ -682,11 +683,32 @@ El movimiento hace el sitio más vivo sin dejar de ser tranquilo, como correspon
   - Las filas o tarjetas entran deslizándose solo al cambiar de día (45 ms entre filas, con tope de 8).
   - Al cambiar un estado, la insignia anterior crece y se desvanece mientras la nueva aparece. La fila actualizada da un destello verde breve y la cifra del filtro que cambió da un pulso.
   - El menú «⋯» crece desde su botón y los diálogos se abren con fundido y escala.
+- **Formularios de acceso (P4 Mi cita y P5 Resultados):**
+  - Los campos entran escalonados (0, 80 y 160 ms; solo CSS).
+  - Al enfocar un campo aparece un resalte suave: una capa con borde que cambia de opacidad y escala. Solo reemplaza el contorno del navegador donde existe `:has()`.
+  - Mientras se valida, el botón muestra un anillo discreto que gira y `aria-busy`; su texto no cambia.
+  - Un error produce la sacudida y el fundido del mensaje (ver «Acceso seguro»).
+- **P4 Mi cita:**
+  - Al entrar, la tarjeta de la cita aparece con escala y fundido junto al formulario, que se queda en su lugar. En el teléfono se desplaza con suavidad hasta la vista para que sus botones no queden bajo la barra fija.
+  - Los datos (paciente, día, hora y código) entran por pares. La insignia de estado da un pulso y un barrido que la «rellena» (no existe una línea de estado aparte). El código destella una vez.
+  - Los paneles de cancelar y reprogramar se abren en su lugar. Los botones se elevan con el cursor. Los turnos entran escalonados y el elegido da un pulso. Si el estado cambia con la tarjeta visible, hay un fundido entre insignias.
+  - Tras cancelar o reprogramar, la confirmación entra con escala, una marca (✓ o ×) se dibuja y los datos aparecen por pares.
+  - Los enlaces de salida responden al presionar.
+- **P5 Resultados:**
+  - El panel entra con escala, y los informes entran escalonados y se elevan con el cursor.
+  - Al descargar, el botón muestra el anillo de carga; al terminar, la tarjeta destella y el botón da un pulso.
+  - El estado vacío entra con suavidad y su ícono de línea (documento en espera) se dibuja; el mensaje es el mismo.
+  - «Consultar otra cita» borra el token de inmediato; el panel se va con un fundido de 200 ms y después se limpia.
+- **Mostrar u ocultar la contraseña (`public/js/ojo-contrasena.js`):** todo `input[type=password]` recibe dentro, a la derecha, un `<button type="button">` con un ojo. Hoy solo existe uno: la contraseña de A1 Iniciar sesión. El código de cita de P4 y P5 ya se ve en claro, así que no lo lleva.
+  - Usa `aria-pressed` y `aria-label` («Mostrar contraseña» / «Ocultar contraseña»), y su área táctil es de 44 × 44 px. El ícono cambia de ojo a ojo tachado con opacidad y transform en 200 ms.
+  - No roba el foco ni mueve el cursor del campo. Vuelve a ocultar el texto al enviar y cuando el acceso falla.
+  - No cambia `name` ni `autocomplete` (`new-password` en el login).
 
 **Verificación:** se hizo a 360 px en Chrome sin interfaz, con la CPU 6 veces más lenta para simular un teléfono de gama baja.
 - No hay scroll horizontal y el desplazamiento de diseño (CLS) es 0.
 - Ningún elemento animado tapa los botones principales. Los solapes que quedan ya existían: la barra fija y el tirador del menú sobre el contenido que pasa debajo.
 - En un scroll rápido por toda la portada se pierde alrededor del 8 % de los cuadros (sin movimiento, casi ninguno). La causa es el inicio de los revelados.
+- En Mi cita y Resultados (con API simulada) no hay scroll horizontal ni solapes sobre los botones de la tarjeta. Durante la entrada de la tarjeta, el trabajo total del hilo principal es casi igual con y sin animaciones CSS; estas añaden alrededor de 45 ms reales de recálculo de estilos. El ojo del login cambia el tipo del campo y conserva el foco, el cursor y `autocomplete`.
 
 Las pruebas `tests/movimiento.test.js` verifican estas reglas: propiedades, tiempos, bucles, capas que no tapan, movimiento reducido, hover solo con cursor y nada oculto sin JavaScript.
 

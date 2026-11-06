@@ -170,7 +170,15 @@
 @keyframes parallax-fondo {
   to { transform: translateY(90px); }
 }
-/* Única excepción a transform/opacity: dibujar el trazo de 4 íconos de 24 px, una sola vez. */
+@keyframes girar {
+  to { transform: rotate(360deg); }
+}
+@keyframes relleno-insignia {
+  from { opacity: 0.22; transform: scaleX(0); }
+  60% { opacity: 0.22; }
+  to { opacity: 0; transform: scaleX(1); }
+}
+/* Única excepción a transform/opacity: dibujar el trazo de íconos pequeños de línea, una sola vez. */
 @keyframes trazo {
   from { stroke-dashoffset: 1; }
 }
@@ -819,6 +827,217 @@
   dialog[open]::backdrop {
     animation: aparecer var(--dur-media) ease-out;
   }
+  /* ---------- Formularios de acceso (Mi cita, Resultados, login) ---------- */
+  /* Los campos entran escalonados al cargar (solo CSS; el botón llega a los 160 ms). */
+  .entrada-campos > * {
+    animation: subir-corto 600ms var(--ease-suave) backwards;
+  }
+  .entrada-campos > :nth-child(2) { animation-delay: 80ms; }
+  .entrada-campos > :nth-child(3) { animation-delay: 160ms; }
+
+  /* Envoltura de un campo (la crea el JS): resalte de foco y botón del ojo. */
+  .campo-envoltura {
+    position: relative;
+    display: block;
+  }
+  /* Resalte de foco: una capa con borde que aparece (opacidad) y se ajusta (escala). */
+  .campo-envoltura.con-halo::after {
+    content: "";
+    position: absolute;
+    inset: -3px;
+    border-radius: calc(0.5rem + 3px);
+    border: 2px solid var(--color-primario);
+    opacity: 0;
+    transform: scale(0.985);
+    pointer-events: none;
+    transition: opacity 200ms ease-out, transform 200ms var(--ease-salida);
+  }
+  .campo-envoltura.con-halo:has(> input:focus)::after {
+    opacity: 1;
+    transform: none;
+  }
+  /* El resalte reemplaza al contorno del navegador solo donde :has() existe (si no, queda el contorno). */
+  .campo-envoltura.con-halo:has(> input:focus-visible) > input:focus-visible {
+    outline: none;
+    box-shadow: none;
+  }
+
+  /* Botón del ojo (ojo-contrasena.js): dentro del campo, a la derecha, área de 44 × 44 px. */
+  .boton-ojo {
+    position: absolute;
+    top: 0;
+    right: 0;
+    display: grid;
+    place-items: center;
+    width: 2.75rem;
+    height: 100%;
+    min-height: 2.75rem;
+    border-radius: 0.5rem;
+    color: var(--color-tinta-2);
+  }
+  .boton-ojo:hover {
+    color: var(--color-tinta);
+  }
+  .boton-ojo svg {
+    grid-area: 1 / 1;
+    width: 1.25rem;
+    height: 1.25rem;
+    transition: opacity 200ms ease-out, transform 200ms var(--ease-salida);
+  }
+  .boton-ojo .ojo-tachado,
+  .boton-ojo[aria-pressed="true"] .ojo-abierto {
+    opacity: 0;
+    transform: scale(0.7) rotate(-12deg);
+  }
+  .boton-ojo[aria-pressed="true"] .ojo-tachado {
+    opacity: 1;
+    transform: none;
+  }
+
+  /* Botón «cargando»: anillo pequeño que gira junto al texto (el texto no cambia de tamaño). */
+  [data-cargando]::before {
+    content: "";
+    display: inline-block;
+    width: 1em;
+    height: 1em;
+    margin-right: 0.5rem;
+    vertical-align: -0.15em;
+    border: 2px solid currentColor;
+    border-right-color: transparent;
+    border-radius: 9999px;
+    opacity: 0.85;
+    animation: girar 700ms linear infinite;
+  }
+
+  /* ---------- Mi cita: tarjeta ---------- */
+  /* Al llevar la tarjeta a la vista, queda bajo la barra superior del teléfono. */
+  #panel-cita,
+  #panel-resultados {
+    scroll-margin-top: 5rem;
+  }
+  /* La insignia de estado aparece con un pulso y un barrido que la «rellena». */
+  .insignia-aparece {
+    position: relative;
+    isolation: isolate;
+    overflow: hidden;
+    animation: insignia-entra 450ms var(--ease-salida) 250ms backwards;
+  }
+  .insignia-aparece::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    z-index: -1;
+    background: currentColor;
+    opacity: 0;
+    transform-origin: left center;
+    pointer-events: none;
+    animation: relleno-insignia 800ms var(--ease-suave) 300ms backwards;
+  }
+  /* Fundido entre insignias (la anterior se va encima de la nueva). */
+  .insignia-saliente {
+    position: absolute;
+    pointer-events: none;
+    animation: insignia-sale 360ms var(--ease-salida) both;
+  }
+  /* El código de la cita destella una vez al mostrarse. */
+  .codigo-destello {
+    position: relative;
+    isolation: isolate;
+    justify-self: start;
+  }
+  .codigo-destello::before {
+    content: "";
+    position: absolute;
+    inset: -2px -6px;
+    z-index: -1;
+    border-radius: 0.375rem;
+    background: rgb(163 163 163 / 0.35);
+    opacity: 0;
+    pointer-events: none;
+    animation: destello 900ms ease-out 450ms;
+  }
+  /* Los datos entran por pares (dt + dd) después de la tarjeta. */
+  .entra-escalonado > dt,
+  .entra-escalonado > dd {
+    animation-delay: calc(var(--i, 0) * 70ms + 150ms);
+  }
+  /* Botones de cancelar y reprogramar: se elevan con el cursor (sombra por opacidad). */
+  .boton-eleva {
+    position: relative;
+  }
+  .boton-eleva::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    border-radius: inherit;
+    box-shadow: 0 12px 24px -12px rgb(0 0 0 / 0.35);
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 200ms ease-out;
+  }
+  @media (hover: hover) and (pointer: fine) {
+    .boton-eleva:hover {
+      translate: 0 -2px;
+    }
+    .boton-eleva:hover::after {
+      opacity: 1;
+    }
+  }
+  /* Confirmación: una marca (✓ o ×) que se dibuja. */
+  .marca-confirmacion {
+    display: block;
+    width: 3rem;
+    height: 3rem;
+    margin-bottom: 0.75rem;
+    fill: none;
+    stroke: currentColor;
+    stroke-width: 2.5;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+  }
+  .marca-confirmacion :is(circle, path) {
+    stroke-dasharray: 1;
+    animation: trazo 700ms var(--ease-suave) 150ms backwards;
+  }
+  .marca-confirmacion path {
+    animation-delay: 550ms;
+  }
+  /* Enlaces y botones de salida: respuesta suave al presionar. */
+  .enlace-salida:active {
+    opacity: 0.6;
+  }
+
+  /* ---------- Resultados ---------- */
+  .tarjeta-informe {
+    position: relative;
+    transition: translate 250ms var(--ease-salida);
+  }
+  .tarjeta-informe::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    border-radius: inherit;
+    box-shadow: 0 14px 28px -16px rgb(0 0 0 / 0.3);
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 250ms ease-out;
+  }
+  @media (hover: hover) and (pointer: fine) {
+    .tarjeta-informe:hover {
+      translate: 0 -2px;
+    }
+    .tarjeta-informe:hover::after {
+      opacity: 1;
+    }
+  }
+  /* Estado vacío: el mensaje entra con suavidad y el ícono de línea se dibuja. */
+  .vacio-entra {
+    animation: subir-corto 600ms var(--ease-suave) backwards;
+  }
+  .vacio-entra .icono-vacio :is(path, circle) {
+    stroke-dasharray: 1;
+    animation: trazo 800ms var(--ease-suave) 200ms backwards;
+  }
 }
 
 /* Movimiento reducido: sin animaciones ni desplazamientos; nada queda oculto. */
@@ -844,8 +1063,14 @@
   :where(button, a[class*="rounded"], .enlace-menu, .servicio-boton, .boton-whatsapp, .tarjeta-opcion):active {
     scale: none !important;
   }
+  /* (El anillo de carga queda quieto: sigue indicando que se está trabajando.) */
+  .insignia-saliente {
+    display: none !important;
+  }
   .servicio-boton:hover,
   .tarjeta-opcion:hover,
+  .boton-eleva:hover,
+  .tarjeta-informe:hover,
   .boton-whatsapp:hover,
   .hero-afiche-marco:hover > .hero-imagen,
   .fila-accion:hover svg {
