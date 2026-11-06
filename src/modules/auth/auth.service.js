@@ -22,9 +22,11 @@ function errorCredenciales() {
   return new ErrorNegocio('CREDENCIALES_INVALIDAS', 'Usuario o contraseña incorrectos.', 401);
 }
 
-// E2/E3: informa el tiempo restante.
+// E2/E3: informa el tiempo restante. bloqueado_hasta es DATETIME2(0) y SQL Server
+// redondea al segundo: un bloqueo recién guardado puede quedar hasta 0,5 s «en el
+// futuro» y dar 901 s (→ «16 minutos»). El aviso nunca pasa de la duración del bloqueo.
 function errorBloqueada(segundos) {
-  const minutos = Math.max(1, Math.ceil(segundos / 60));
+  const minutos = Math.min(MINUTOS_BLOQUEO, Math.max(1, Math.ceil(segundos / 60)));
   return new ErrorNegocio(
     'CUENTA_BLOQUEADA',
     `La cuenta está bloqueada por ${MAX_FALLIDOS} intentos fallidos. ` +

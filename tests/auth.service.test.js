@@ -109,6 +109,23 @@ describe('CU-10 iniciarSesion', () => {
     expect(d.usuariosRepo.registrarExito).not.toHaveBeenCalled();
   });
 
+  // RN-12: el redondeo de DATETIME2(0) puede dar 901 s justo al bloquear; el aviso
+  // nunca pasa de la duración del bloqueo (15 minutos).
+  test.each([901, 959, 960, 1000])('E2 (RN-12): con %i s por redondeo dice 15 minutos, nunca 16', async (segundos) => {
+    const { auth } = armar({ fallo: { intentos: 5, segundosBloqueo: segundos } });
+    const err = await auth.iniciarSesion({ usuario: 'dra.rueda', contrasena: 'mala' }).catch((e) => e);
+    expect(err).toMatchObject({ codigo: 'CUENTA_BLOQUEADA', http: 423 });
+    expect(err.message).toContain('Intenta de nuevo en 15 minutos.');
+    expect(err.message).not.toContain('16 minutos');
+  });
+
+  test('E3 (RN-12): cuenta ya bloqueada con 901 s restantes → 15 minutos', async () => {
+    const { auth } = armar({ usuario: cuenta({ segundosBloqueo: 901 }) });
+    await expect(auth.iniciarSesion({ usuario: 'dra.rueda', contrasena: 'x' })).rejects.toMatchObject({
+      message: expect.stringContaining('Intenta de nuevo en 15 minutos.'),
+    });
+  });
+
   test('E3: con un minuto o menos usa el singular', async () => {
     const { auth } = armar({ usuario: cuenta({ segundosBloqueo: 30 }) });
     await expect(auth.iniciarSesion({ usuario: 'dra.rueda', contrasena: 'x' })).rejects.toMatchObject({

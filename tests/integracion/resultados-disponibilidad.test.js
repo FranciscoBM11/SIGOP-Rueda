@@ -107,7 +107,17 @@ afterAll(async () => {
         WHERE h.dia_semana IN (${lista}) AND NOT EXISTS (SELECT 1 FROM dbo.turnos t WHERE t.horario_id = h.id);`,
     );
   }
-  await cerrarPool();
+
+  // La prueba no deja la base alterada: la disponibilidad de cada día (el sábado incluido,
+  // si estaba activo) queda como antes y las contraseñas de demostración siguen sirviendo.
+  try {
+    const resumen = (hs) => hs.map(({ diaSemana, atiende, apertura, cierre, duracion }) => ({ diaSemana, atiende, apertura, cierre, duracion }));
+    const final = (await (await entrar('dra.rueda', 'Clinica2026')).get('/api/v1/admin/disponibilidad')).body.horarios;
+    expect(resumen(final)).toEqual(resumen(horarioOriginal));
+    await entrar('recepcion.lira', 'Recepcion2026');
+  } finally {
+    await cerrarPool();
+  }
 });
 
 describe('CU-15, CU-08 y CU-09: subir, consultar y descargar un informe', () => {

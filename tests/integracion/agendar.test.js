@@ -78,13 +78,22 @@ test('calculadora: devuelve estudios del trimestre desde la base', async () => {
   expect(res.body.estudios.length).toBeGreaterThan(0);
 });
 
-test('turnos: genera y lista turnos de 40 min solo en días laborales (RN-10)', async () => {
+/** Día ISO de una fecha 'AAAA-MM-DD': 1 = lunes … 7 = domingo (igual que horarios_laborales.dia_semana). */
+const diaSemanaIso = (fecha) => ((new Date(`${fecha}T12:00:00Z`).getUTCDay() + 6) % 7) + 1;
+
+test('turnos: solo en los días laborales configurados, nunca en domingo ni en días no laborales (RN-10)', async () => {
+  // Días laborales tal como están configurados AHORA en la disponibilidad (CU-16), no
+  // días fijos: el seed trae lunes a viernes, pero la médica puede activar el sábado.
+  const r = await pool.request().query('SELECT DISTINCT dia_semana FROM dbo.horarios_laborales WHERE activo = 1');
+  const laborales = new Set(r.recordset.map((f) => f.dia_semana));
+  expect(laborales.size).toBeGreaterThan(0);
+
   const libres = await turnosLibres();
   expect(libres.length).toBeGreaterThan(0);
   for (const t of libres) {
-    const dia = new Date(`${t.fecha}T00:00:00Z`).getUTCDay(); // 0 = domingo
-    expect(dia).toBeGreaterThanOrEqual(1);
-    expect(dia).toBeLessThanOrEqual(5);
+    const dia = diaSemanaIso(t.fecha);
+    expect(dia).not.toBe(7); // la clínica no atiende domingo
+    expect(laborales).toContain(dia); // nunca en un día no laboral (inactivo o sin horario)
   }
 });
 
