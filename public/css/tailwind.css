@@ -33,24 +33,51 @@
   --font-sans: "Atkinson Hyperlegible", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
   --font-titulo: "Bricolage Grotesque", system-ui, -apple-system, "Segoe UI", sans-serif;
 
-  /* Movimiento: salida exponencial, corta. */
+  /*
+   * Movimiento (Fase 3, sección 8.7). Solo transform y opacity. Respuestas a clics
+   * 150–350 ms (salida exponencial); entradas de página y scroll 600–900 ms
+   * (desaceleración suave). Sin movimiento con prefers-reduced-motion.
+   */
   --ease-salida: cubic-bezier(0.16, 1, 0.3, 1);
-  --animate-entrar: entrar 600ms var(--ease-salida) both;
+  --animate-entrar: entrar 500ms var(--ease-salida) both;
 
   @keyframes entrar {
     from { opacity: 0; transform: translateY(12px); }
   }
 }
 
+/* Duraciones y curvas compartidas (CSS y movimiento.js usan los mismos valores). */
+:root {
+  --dur-presion: 150ms;  /* respuesta al presionar */
+  --dur-corta: 200ms;    /* menús, globos, contadores */
+  --dur-media: 320ms;    /* paneles, diálogos, pasos (respuesta a un clic) */
+  --dur-larga: 800ms;    /* entradas de página y de scroll */
+  --dur-lenta: 900ms;    /* título del hero, cortina de las fotos, trazo de íconos */
+  --ease-suave: cubic-bezier(0.22, 1, 0.36, 1); /* easeOutQuint: desacelera sin frenazo */
+  --dist-entrada: 32px;  /* desplazamiento de las entradas (24–40 px) */
+}
+
 @layer base {
   a, button {
-    transition-property: color, background-color, border-color, box-shadow, opacity;
-    transition-duration: 150ms;
-    transition-timing-function: ease-out;
+    transition-property: color, background-color, border-color, box-shadow, opacity, scale, translate;
+    transition-duration: 150ms, 150ms, 150ms, 150ms, 150ms, var(--dur-presion), var(--dur-corta);
+    transition-timing-function: ease-out, ease-out, ease-out, ease-out, ease-out, var(--ease-salida), var(--ease-salida);
+    /* Teléfono: sin espera de doble toque ni selección del texto del botón al mantener pulsado. */
+    touch-action: manipulation;
+  }
+  button {
+    -webkit-user-select: none;
+    user-select: none;
+  }
+  /* Respuesta al presionar: botones y enlaces con forma de botón (los enlaces de texto no se encogen). */
+  :where(button, a[class*="rounded"], .enlace-menu):not(:disabled):active {
+    scale: 0.97;
   }
   html {
     @apply bg-bruma text-tinta font-sans antialiased;
     scrollbar-color: var(--color-tinta-2) var(--color-bruma);
+    /* Sin el destello gris del navegador al tocar: cada control tiene su propio :active. */
+    -webkit-tap-highlight-color: transparent;
   }
   ::selection {
     background: var(--color-primario);
@@ -75,9 +102,77 @@
   }
 }
 
-/* Aparición del panel de un servicio (portada). */
+/* Aparición del panel de un servicio (portada): crece desde su tarjeta. */
 @keyframes panel-aparece {
-  from { opacity: 0; transform: translateY(-6px); }
+  from { opacity: 0; transform: translateY(-6px) scale(0.98); }
+}
+/* Entradas genéricas: solo opacidad y transform. */
+@keyframes aparecer {
+  from { opacity: 0; }
+}
+@keyframes subir {
+  from { opacity: 0; transform: translateY(var(--dist-entrada)); }
+}
+@keyframes subir-corto {
+  from { opacity: 0; transform: translateY(16px); }
+}
+@keyframes palabra-sube {
+  from { opacity: 0; transform: translateY(105%); }
+}
+@keyframes asentar {
+  from { opacity: 0; transform: translateY(24px) scale(0.92); }
+}
+@keyframes flotar {
+  from { transform: translateY(-6px); }
+  to { transform: translateY(6px); }
+}
+@keyframes emerger {
+  from { opacity: 0; transform: translateY(12px) scale(0.95); }
+}
+@keyframes desde-abajo {
+  from { transform: translateY(100%); }
+}
+@keyframes deslizar-izq {
+  from { opacity: 0; transform: translateX(-24px); }
+}
+@keyframes cortina {
+  from { transform: translateX(0); }
+}
+@keyframes foto-asienta {
+  from { transform: scale(1.12); }
+}
+@keyframes pulso {
+  from { opacity: 0.4; transform: scale(0.85); }
+}
+@keyframes anillo {
+  from { opacity: 0.55; transform: scale(1); }
+  to { opacity: 0; transform: scale(1.06); }
+}
+@keyframes insignia-sale {
+  to { opacity: 0; transform: scale(1.18); }
+}
+@keyframes insignia-entra {
+  from { opacity: 0; transform: scale(0.7); }
+}
+@keyframes destello {
+  0% { opacity: 0; }
+  18% { opacity: 1; }
+  100% { opacity: 0; }
+}
+@keyframes brillo {
+  0% { transform: translateX(-120%) skewX(-18deg); }
+  14%, 100% { transform: translateX(360%) skewX(-18deg); }
+}
+@keyframes progreso-lectura {
+  from { transform: scaleX(0); }
+  to { transform: scaleX(1); }
+}
+@keyframes parallax-fondo {
+  to { transform: translateY(90px); }
+}
+/* Única excepción a transform/opacity: dibujar el trazo de 4 íconos de 24 px, una sola vez. */
+@keyframes trazo {
+  from { stroke-dashoffset: 1; }
 }
 
 @layer components {
@@ -209,14 +304,24 @@
       font-weight: 700;
       box-shadow: 0 0 0 1px rgb(255 255 255 / 0.15), 0 8px 20px -8px rgb(0 0 0 / 0.5);
       opacity: 0;
+      scale: 0.96;
+      transform-origin: left center; /* nace del ícono */
       pointer-events: none;
-      transition: opacity 150ms ease-out, translate 150ms var(--ease-salida);
+      /* Salida lineal y corta; la entrada usa la curva de salida. */
+      transition: opacity 150ms ease-out, translate 150ms ease-out, scale 150ms ease-out;
     }
     [data-menu="encogido"] .menu-lateral .enlace-menu:hover::after,
     [data-menu="encogido"] .menu-lateral .enlace-menu:focus-visible::after {
       opacity: 1;
       translate: 0 -50%;
+      scale: 1;
+      transition: opacity var(--dur-corta) ease-out, translate var(--dur-corta) var(--ease-salida), scale var(--dur-corta) var(--ease-salida);
     }
+  }
+
+  /* Al desplegar el menú (escritorio), los textos aparecen mientras crece el ancho (menu-publico.js). */
+  [data-menu-anima="desplegar"] .menu-lateral .menu-texto {
+    animation: aparecer var(--dur-media) ease-out 80ms backwards;
   }
 
   /* Servicios de la portada: en el teléfono el panel se despliega debajo; desde md flota sobre la cuadrícula. */
@@ -230,7 +335,15 @@
     padding-top: 0.5rem;
   }
   .servicio-panel:not([hidden]) {
-    animation: panel-aparece 180ms var(--ease-salida);
+    transform-origin: top center;
+    animation: panel-aparece 220ms var(--ease-salida);
+  }
+  /* Tarjeta de servicio: la elevación con sombra está en el bloque de movimiento; al presionar se comprime apenas. */
+  .servicio-boton {
+    transition-duration: 150ms, 150ms, 150ms, 150ms, 150ms, var(--dur-presion), 300ms;
+  }
+  .servicio-boton:active {
+    scale: 0.985;
   }
   @media (width >= 48rem) {
     .servicio-panel {
@@ -256,11 +369,29 @@
     background: var(--color-whatsapp);
     color: #fff;
     box-shadow: 0 10px 24px -8px rgb(0 0 0 / 0.45);
-    transition: translate 200ms var(--ease-salida), background-color 150ms ease-out;
+    transition: translate 600ms var(--ease-suave), scale var(--dur-presion) var(--ease-salida), opacity 600ms var(--ease-suave), background-color 150ms ease-out, visibility 0s;
+    /* Entrada discreta, después del contenido principal. */
+    animation: emerger 700ms var(--ease-suave) 700ms backwards;
+  }
+  /* Portada en el teléfono: espera fuera mientras los botones del hero están a la vista (revelar.js),
+     para no quedar encima de «Mi cita»; al bajar, entra subiendo. */
+  [data-whatsapp-espera] .boton-whatsapp {
+    opacity: 0;
+    translate: 0 24px;
+    visibility: hidden;
+    pointer-events: none;
+    transition: translate 300ms var(--ease-salida), opacity 300ms ease-out, visibility 0s linear 300ms;
   }
   .boton-whatsapp:hover {
-    translate: 0 -2px;
     background: var(--color-whatsapp-oscuro);
+  }
+  @media (hover: hover) and (pointer: fine) {
+    .boton-whatsapp:hover {
+      translate: 0 -2px;
+    }
+  }
+  .boton-whatsapp:active {
+    scale: 0.94;
   }
   .barra-agendar {
     position: fixed;
@@ -270,6 +401,8 @@
     padding: 0.75rem 1rem calc(0.75rem + env(safe-area-inset-bottom));
     border-top: 1px solid rgb(31 31 31 / 0.1);
     background: rgb(255 255 255 / 0.96);
+    /* Sube desde el borde, sin retraso: su botón es la acción principal. */
+    animation: desde-abajo 600ms var(--ease-suave) backwards;
   }
   @media (width < 64rem) {
     /* Que la barra no tape el final de la página ni el botón de WhatsApp. */
@@ -327,14 +460,368 @@
 
   /* Fila de acción con flecha que avanza al pasar el cursor. */
   .fila-accion svg {
-    transition: transform 200ms var(--ease-salida);
+    transition: transform 300ms var(--ease-salida);
   }
-  .fila-accion:hover svg {
-    transform: translateX(3px);
+  @media (hover: hover) and (pointer: fine) {
+    .fila-accion:hover svg {
+      transform: translateX(5px);
+    }
   }
 }
 
-/* Movimiento reducido: sin animaciones ni desplazamientos. */
+/*
+ * Movimiento y microinteracciones (Fase 3, sección 8.7).
+ * Regla de oro: el estado por defecto es VISIBLE. Si el CSS animado o el JS fallan,
+ * todo se ve y funciona; las animaciones solo cuentan cómo llega el contenido.
+ * Las entradas usan fill «backwards» (no dejan capas que tapen paneles o botones).
+ */
+@layer components {
+  /* ---------- Barra de progreso de lectura (portada) ---------- */
+  .progreso-lectura {
+    position: fixed;
+    inset-inline: 0;
+    top: 0;
+    z-index: 60;
+    height: 3px;
+    background: var(--color-acento); /* visible sobre el hero oscuro y sobre el fondo claro */
+    transform: scaleX(0);
+    transform-origin: left center;
+    pointer-events: none;
+  }
+  /* Navegadores con línea de tiempo de scroll: corre fuera del hilo principal, sin JS. */
+  @supports (animation-timeline: scroll()) {
+    .progreso-lectura {
+      animation: progreso-lectura linear both;
+      animation-timeline: scroll(root);
+    }
+  }
+
+  /* ---------- Hero ---------- */
+  .hero {
+    position: relative;
+    isolation: isolate;
+    overflow: hidden;
+  }
+  /* Fondo con un brillo gris muy tenue que se mueve más lento que el contenido (parallax). */
+  .hero-fondo {
+    position: absolute;
+    inset: -90px 0 0;
+    z-index: -1;
+    pointer-events: none;
+    background:
+      radial-gradient(40rem 26rem at 85% 15%, rgb(255 255 255 / 0.07), transparent 70%),
+      radial-gradient(30rem 22rem at 5% 95%, rgb(255 255 255 / 0.05), transparent 70%);
+  }
+  @supports (animation-timeline: scroll()) {
+    .hero-fondo {
+      animation: parallax-fondo linear both;
+      animation-timeline: scroll(root);
+      animation-range: 0 100vh;
+    }
+  }
+  /* Título palabra por palabra: cada palabra sube desde su propia máscara. */
+  .palabra-mascara {
+    display: inline-block;
+    overflow: hidden;
+    vertical-align: bottom;
+    padding-bottom: 0.1em;
+    margin-bottom: -0.1em;
+  }
+  .palabra {
+    display: inline-block;
+    animation: palabra-sube var(--dur-lenta) var(--ease-suave) backwards;
+    animation-delay: calc(var(--i, 0) * 110ms + 80ms);
+  }
+  .hero-paso {
+    animation: subir var(--dur-larga) var(--ease-suave) backwards;
+    animation-delay: calc(var(--i, 0) * 110ms);
+  }
+  /* Orden del hero (la CSP no permite style en línea): emblema 0, palabras 80–190 ms, subtítulo 220 ms; texto y botones juntos a 330 ms (la acción principal no espera). */
+  .retraso-1 { --i: 1; }
+  .retraso-2 { --i: 2; }
+  .retraso-3 { --i: 3; }
+  .hero-emblema {
+    animation: emerger var(--dur-larga) var(--ease-suave) backwards;
+  }
+  /* Afiche: entra con escala y fundido; después flota muy lento (ciclo de 7 s, ±6 px). */
+  .hero-afiche-flota {
+    animation: flotar 3.5s ease-in-out -1.75s infinite alternate;
+  }
+  /* Fuera de pantalla, el bucle se pausa (revelar.js): sin costo mientras se lee el resto. */
+  [data-hero-fuera] .hero-afiche-flota {
+    animation-play-state: paused;
+  }
+  .hero-afiche-marco {
+    animation: asentar var(--dur-lenta) var(--ease-suave) 120ms backwards;
+  }
+  .hero--foto .hero-afiche-flota {
+    display: none;
+  }
+  @media (hover: hover) and (pointer: fine) {
+    .hero-afiche-marco > .hero-imagen {
+      transition: transform var(--dur-larga) var(--ease-suave);
+    }
+    .hero-afiche-marco:hover > .hero-imagen {
+      transform: scale(1.03);
+    }
+  }
+
+  /* ---------- Botones «Agendar cita»: brillo que cruza cada 7 s ---------- */
+  .boton-brillo {
+    position: relative;
+    isolation: isolate;
+    overflow: hidden;
+  }
+  .boton-brillo::after {
+    content: "";
+    position: absolute;
+    inset-block: 0;
+    left: 0;
+    width: 35%;
+    z-index: -1; /* detrás del texto y de la flecha */
+    pointer-events: none;
+    background: linear-gradient(90deg, transparent, rgb(255 255 255 / 0.28), transparent);
+    transform: translateX(-120%) skewX(-18deg);
+    animation: brillo 7s ease-in-out 2.5s infinite;
+  }
+  /* Botón claro (hero): brillo gris, no blanco. */
+  .boton-brillo--claro::after {
+    background: linear-gradient(90deg, transparent, rgb(20 20 20 / 0.1), transparent);
+  }
+  .boton-brillo--tarde::after {
+    animation-delay: 6s; /* si hay dos visibles a la vez, no brillan juntos */
+  }
+
+  /* ---------- Secciones al hacer scroll (revelar.js marca solo lo que está fuera de pantalla) ---------- */
+  [data-revelar="pendiente"] {
+    opacity: 0;
+    transform: translateY(var(--dist-entrada));
+  }
+  [data-revelar="visible"] {
+    animation: subir var(--dur-larga) var(--ease-suave) backwards;
+    animation-delay: calc(var(--i, 0) * var(--paso, 90ms));
+  }
+  /* Tarjetas de servicio y datos de contacto: una ola en el orden de lectura. */
+  .servicio:nth-child(2),
+  .contacto-item:nth-child(2) { --i: 1; }
+  .servicio:nth-child(3),
+  .contacto-item:nth-child(3) { --i: 2; }
+  .servicio:nth-child(4) { --i: 3; }
+  .contacto-item { --paso: 140ms; }
+  .contacto-nota { --i: 3; --paso: 140ms; }
+
+  /* Fotos (doctora y clínica): una cortina del color del fondo se desliza y descubre la foto. */
+  .imagen-revela {
+    position: relative;
+    overflow: hidden;
+  }
+  .imagen-revela::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    background: var(--color-bruma);
+    transform: translateX(101%); /* fuera del marco: sin JS no tapa nada */
+    pointer-events: none;
+  }
+  .imagen-revela[data-revelar="pendiente"] {
+    opacity: 1;
+    transform: none;
+  }
+  .imagen-revela[data-revelar="pendiente"]::after {
+    transform: none;
+  }
+  .imagen-revela[data-revelar="visible"] {
+    animation: none;
+  }
+  .imagen-revela[data-revelar="visible"]::after {
+    animation: cortina var(--dur-lenta) cubic-bezier(0.65, 0, 0.35, 1) backwards;
+  }
+  .imagen-revela[data-revelar="visible"] > img {
+    animation: foto-asienta 1.2s var(--ease-suave) backwards;
+  }
+  .texto-tras-foto { --i: 2; }
+
+  /* Íconos de servicio: el trazo se dibuja al aparecer la tarjeta (pathLength="1" en el HTML). */
+  .servicio[data-revelar="visible"] .icono-trazo :is(path, circle, rect) {
+    stroke-dasharray: 1;
+    animation: trazo var(--dur-lenta) var(--ease-suave) backwards;
+    animation-delay: calc(var(--i, 0) * 90ms + 250ms);
+  }
+
+  /* Tarjetas de servicio: se elevan; la sombra es una capa cuya OPACIDAD cambia (no se anima box-shadow). */
+  .servicio-boton,
+  .tarjeta-opcion {
+    position: relative;
+  }
+  .servicio-boton::after,
+  .tarjeta-opcion::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    border-radius: inherit;
+    box-shadow: 0 22px 44px -22px rgb(0 0 0 / 0.38);
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 300ms ease-out;
+  }
+  @media (hover: hover) and (pointer: fine) {
+    .servicio-boton:hover,
+    .tarjeta-opcion:hover {
+      translate: 0 -4px;
+    }
+    .servicio-boton:hover::after,
+    .tarjeta-opcion:hover::after {
+      opacity: 1;
+    }
+  }
+  .tarjeta-opcion {
+    transition: translate 300ms var(--ease-salida), scale var(--dur-presion) var(--ease-salida);
+  }
+  .tarjeta-opcion:active {
+    scale: 0.985;
+  }
+  /* Selección: un anillo que se expande y se apaga. */
+  .tarjeta-opcion::before {
+    content: "";
+    position: absolute;
+    inset: -2px;
+    border-radius: inherit;
+    border: 2px solid var(--color-primario);
+    opacity: 0;
+    pointer-events: none;
+  }
+  .tarjeta-opcion.pulso-seleccion::before {
+    animation: anillo 550ms var(--ease-suave);
+  }
+  .tarjeta-opcion.pulso-seleccion {
+    animation: pulso var(--dur-media) var(--ease-salida);
+  }
+
+  /* ---------- Menú lateral: cascada en la primera página de la sesión e indicador deslizante ---------- */
+  @media (width >= 64rem) {
+    [data-menu-cascada] .menu-lateral nav > * {
+      animation: deslizar-izq 650ms var(--ease-suave) backwards;
+      animation-delay: calc(var(--i, 0) * 55ms + 150ms);
+    }
+  }
+  .menu-lateral nav > :nth-child(2) { --i: 1; }
+  .menu-lateral nav > :nth-child(3) { --i: 2; }
+  .menu-lateral nav > :nth-child(4) { --i: 3; }
+  .menu-lateral nav > :nth-child(5) { --i: 4; }
+  .menu-lateral nav > :nth-child(6) { --i: 5; }
+  .menu-lateral nav > :nth-child(7) { --i: 6; }
+  .menu-lateral nav {
+    position: relative;
+  }
+  .indicador-menu {
+    position: absolute;
+    top: 0;
+    left: 0.125rem;
+    width: 3px;
+    border-radius: 9999px;
+    background: #fff;
+    opacity: 0;
+    pointer-events: none;
+    transition: transform 380ms var(--ease-suave), opacity 200ms ease-out;
+  }
+  .indicador-menu[data-listo] {
+    opacity: 1;
+  }
+  .indicador-menu[data-llegando] {
+    transition: transform 700ms var(--ease-suave) 350ms, opacity 300ms ease-out 350ms;
+  }
+
+  /* ---------- Agendar: indicador de pasos (la pista gris queda; el relleno fluye) ---------- */
+  .paso {
+    position: relative;
+  }
+  .paso::before {
+    content: "";
+    position: absolute;
+    inset-inline: 0;
+    top: -4px;
+    height: 4px;
+    background: var(--color-primario);
+    transform: scaleX(0);
+    transform-origin: left center;
+    transition: transform 700ms var(--ease-suave);
+  }
+  .paso[data-estado="hecho"]::before {
+    background: var(--color-salvia);
+    transform: none;
+  }
+  .paso[data-estado="actual"]::before {
+    transform: none;
+    transition-delay: 120ms; /* llega después de que se completa el anterior */
+  }
+
+  /* ---------- Listas que entran escalonadas (--i y el tope los pone el JS) ---------- */
+  .entra-escalonado > * {
+    animation: subir-corto 550ms var(--ease-suave) backwards;
+    animation-delay: calc(var(--i, 0) * 60ms);
+  }
+  /* Agenda del personal: filas que se deslizan desde la izquierda. */
+  .entra-escalonado-rapido > * {
+    animation: deslizar-izq 600ms var(--ease-suave) backwards;
+    animation-delay: calc(var(--i, 0) * 45ms);
+  }
+  .turno-recien-elegido {
+    animation: pulso var(--dur-media) var(--ease-salida);
+  }
+
+  /* ---------- Calculadora: la barra de semanas se llena con transform (no con width) ---------- */
+  .barra-semanas {
+    transform: translateX(calc(var(--avance, 0%) - 100%));
+    transition: transform 900ms var(--ease-suave) 300ms;
+  }
+
+  /* ---------- Agenda: cambio de estado y fila recién actualizada ---------- */
+  .cambio-insignia {
+    display: inline-grid;
+  }
+  .cambio-insignia > * {
+    grid-area: 1 / 1;
+  }
+  .cambio-insignia > .insignia-anterior {
+    animation: insignia-sale 360ms var(--ease-salida) both;
+  }
+  .cambio-insignia > .insignia-nueva {
+    animation: insignia-entra 450ms var(--ease-salida) 120ms backwards;
+  }
+  .cifra-cambia {
+    display: inline-block;
+    animation: pulso var(--dur-media) var(--ease-salida);
+  }
+  /* Destello breve (verde salvia translúcido) sobre la fila o tarjeta que cambió. */
+  .fila-destello > td,
+  li.fila-destello {
+    position: relative;
+  }
+  .fila-destello > td::before,
+  li.fila-destello::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    border-radius: inherit;
+    background: rgb(34 102 76 / 0.14);
+    opacity: 0;
+    pointer-events: none;
+    animation: destello 900ms ease-out;
+  }
+
+  /* ---------- Menú «⋯» y diálogos (respuestas a un clic: cortas) ---------- */
+  #menu-acciones:not([hidden]) {
+    animation: emerger var(--dur-corta) var(--ease-salida);
+  }
+  dialog[open] {
+    animation: emerger var(--dur-media) var(--ease-salida);
+  }
+  dialog[open]::backdrop {
+    animation: aparecer var(--dur-media) ease-out;
+  }
+}
+
+/* Movimiento reducido: sin animaciones ni desplazamientos; nada queda oculto. */
 @media (prefers-reduced-motion: reduce) {
   *,
   *::before,
@@ -342,5 +829,27 @@
     animation: none !important;
     transition: none !important;
     scroll-behavior: auto !important;
+  }
+  [data-revelar] {
+    opacity: 1 !important;
+    transform: none !important;
+  }
+  .imagen-revela::after,
+  .progreso-lectura,
+  .hero-fondo,
+  .boton-brillo::after,
+  .indicador-menu {
+    display: none !important;
+  }
+  :where(button, a[class*="rounded"], .enlace-menu, .servicio-boton, .boton-whatsapp, .tarjeta-opcion):active {
+    scale: none !important;
+  }
+  .servicio-boton:hover,
+  .tarjeta-opcion:hover,
+  .boton-whatsapp:hover,
+  .hero-afiche-marco:hover > .hero-imagen,
+  .fila-accion:hover svg {
+    translate: none !important;
+    transform: none !important;
   }
 }

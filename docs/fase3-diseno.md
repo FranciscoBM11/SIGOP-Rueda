@@ -645,6 +645,51 @@ Las mismas pantallas se reorganizan en una sola columna en teléfonos desde 360 
 
 Las pantallas de esta sección son maquetas de alta fidelidad hechas en HTML y CSS, con los mismos colores y la misma tipografía que usará el sistema. Sirven como modelo visual: en la Fase 4 las páginas reales de public/ se construyen con este sistema de diseño (Tailwind CSS) y se conectan a la API. Cada botón y enlace sigue el flujo de la Figura 16 y las vistas se adaptan a escritorio y móvil. Si el docente lo requiere en Figma, las maquetas se importan con el complemento html.to.design.
 
+## 8.7 Movimiento y microinteracciones
+
+El movimiento hace el sitio más vivo sin dejar de ser tranquilo, como corresponde a una clínica: explica qué pasó (respuesta a un toque, de dónde viene un panel, qué cambió) y acompaña la lectura. Se implementa con CSS y JavaScript propios, sin librerías (`public/css/tailwind.css`, bloque «Movimiento y microinteracciones»; `public/js/movimiento.js` y `public/js/revelar.js`).
+
+**Reglas:**
+- **Propiedades:** se animan solo `transform` y `opacity`. Hay dos excepciones justificadas. El ancho del menú lateral al encogerse en escritorio, porque el contenido debe reacomodarse. Y el trazo (`stroke-dashoffset`) de los cuatro íconos de servicio, que se dibujan una sola vez; son 24 px y su costo de pintado es mínimo.
+- **Tiempos:** las respuestas a un clic duran de 150 a 350 ms (`--dur-presion` 150, `--dur-corta` 200, `--dur-media` 320) con salida exponencial `cubic-bezier(0.16, 1, 0.3, 1)`. Las entradas de página y de scroll duran de 600 a 900 ms (`--dur-larga` 800, `--dur-lenta` 900) con un desplazamiento de 24 a 40 px (`--dist-entrada` 32) y desaceleración suave `cubic-bezier(0.22, 1, 0.36, 1)`.
+- **Estado por defecto visible:** si el JavaScript falla, la página se ve completa. Las entradas usan `animation-fill-mode: backwards` para no dejar capas que tapen paneles o botones. Las capas decorativas no reciben clics y van detrás del texto.
+- **Movimiento reducido:** con `prefers-reduced-motion: reduce` no hay movimiento, nada queda oculto y se quitan las capas decorativas (cortina, brillo, parallax, barra de lectura, indicador del menú).
+- **Teléfono:** los efectos al pasar el cursor solo aplican con mouse (`hover: hover` y `pointer: fine`). Se quitó el destello gris del navegador al tocar y se usa `touch-action: manipulation`. No hay animaciones al escribir en los formularios.
+- **Bucles:** solo hay dos, ambos lentos. El afiche flota en un ciclo de 7 s y se pausa cuando el hero sale de la pantalla. El brillo de «Agendar cita» cruza el botón en 1 s cada 7 s.
+
+**Dónde hay movimiento:**
+- **Hero (P1):**
+  - El título entra palabra por palabra desde una máscara; el subtítulo, el texto y los botones lo siguen. Los botones no esperan más que el texto (330 ms).
+  - El afiche entra con escala y fundido y luego flota ±6 px.
+  - El fondo tiene un brillo gris tenue con parallax ligado al scroll (CSS `animation-timeline`, solo en los navegadores que lo soportan).
+- **Barra de lectura (P1):** una línea gris fina arriba indica cuánto se ha leído. Usa CSS `scroll()` y, si el navegador no lo soporta, un respaldo con `requestAnimationFrame`.
+- **Secciones de P1:** aparecen al acercarse con el scroll. Solo se ocultan las que están fuera de pantalla al cargar, y si el foco del teclado llega a una, se muestra.
+  - Las fotos de la doctora y de la clínica se descubren con una cortina del color del fondo que se desliza, mientras la foto se asienta en escala.
+  - Los íconos de servicio se dibujan.
+  - Las tarjetas de servicio entran en ola; con el cursor se elevan 4 px y su sombra aparece por opacidad de una capa (no se anima `box-shadow`).
+  - Los datos de contacto aparecen uno tras otro.
+- **Botones «Agendar cita»:** el brillo cruza el botón y la flecha se desliza con el cursor. En el teléfono, el botón de WhatsApp de la portada espera fuera mientras se ven los botones del hero, para no quedar encima de «Mi cita», y entra al bajar.
+- **Menú lateral:**
+  - Los ítems entran en cascada en la primera página de la sesión, en escritorio.
+  - Un indicador fino se desliza hasta el ítem activo y sigue al cursor.
+  - Al desplegar el menú, los textos aparecen con un fundido.
+- **P2 Agendar:**
+  - Cada paso entra desde el lado del avance y la barra de pasos se llena con fluidez.
+  - Las tarjetas de servicio se elevan con el cursor y la elegida da un pulso con un anillo.
+  - Los días con turnos entran escalonados; el turno elegido da un pulso.
+- **Calculadora (CU-01):** el resultado entra escalonado y la barra de semanas se llena con `translateX`.
+- **A2 Agenda:**
+  - Las filas o tarjetas entran deslizándose solo al cambiar de día (45 ms entre filas, con tope de 8).
+  - Al cambiar un estado, la insignia anterior crece y se desvanece mientras la nueva aparece. La fila actualizada da un destello verde breve y la cifra del filtro que cambió da un pulso.
+  - El menú «⋯» crece desde su botón y los diálogos se abren con fundido y escala.
+
+**Verificación:** se hizo a 360 px en Chrome sin interfaz, con la CPU 6 veces más lenta para simular un teléfono de gama baja.
+- No hay scroll horizontal y el desplazamiento de diseño (CLS) es 0.
+- Ningún elemento animado tapa los botones principales. Los solapes que quedan ya existían: la barra fija y el tirador del menú sobre el contenido que pasa debajo.
+- En un scroll rápido por toda la portada se pierde alrededor del 8 % de los cuadros (sin movimiento, casi ninguno). La causa es el inicio de los revelados.
+
+Las pruebas `tests/movimiento.test.js` verifican estas reglas: propiedades, tiempos, bucles, capas que no tapan, movimiento reducido, hover solo con cursor y nada oculto sin JavaScript.
+
 # Fase 3 – 9. Plan de construcción (puente a la Fase 4)
 
 ## 9.1 Iteraciones

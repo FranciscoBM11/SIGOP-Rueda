@@ -1,5 +1,6 @@
 // Calculadora de Fecha Probable de Parto (CU-01). Antes vivía en la portada (inicio.js).
 import { api, el, formatearFecha, hoyManagua, mostrarAviso } from './api.js';
+import { escalonar, movimientoReducido } from './movimiento.js';
 
 const formulario = document.getElementById('form-fpp');
 const campoFum = document.getElementById('fum');
@@ -20,8 +21,9 @@ function marcarError(texto) {
 }
 
 function pintarResultado(r) {
-  const progreso = el('div', { class: 'h-full rounded-full bg-primario' });
-  progreso.style.width = `${Math.min(100, ((r.semanas * 7 + r.dias) / 280) * 100)}%`;
+  // La barra ocupa todo el ancho y se desplaza (transform): se llena con suavidad sin recalcular el diseño.
+  const avance = `${Math.min(100, ((r.semanas * 7 + r.dias) / 280) * 100)}%`;
+  const progreso = el('div', { class: 'barra-semanas h-full w-full rounded-full bg-primario' });
 
   resultado.replaceChildren(
     el(
@@ -88,6 +90,10 @@ function pintarResultado(r) {
     el('p', { class: 'mt-4 text-sm text-tinta-2' }, 'Este cálculo es orientativo y no se guarda. Confírmalo en tu consulta.'),
   );
   resultado.hidden = false;
+  // En cada cálculo: las tarjetas guían y el resto las sigue (escalonado corto); la barra avanza hasta la semana.
+  escalonar(resultado);
+  if (movimientoReducido()) progreso.style.setProperty('--avance', avance);
+  else requestAnimationFrame(() => requestAnimationFrame(() => progreso.style.setProperty('--avance', avance)));
 }
 
 formulario.addEventListener('submit', async (evento) => {

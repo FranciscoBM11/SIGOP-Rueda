@@ -4,6 +4,7 @@ import { api, el, formatearFecha, hoyManagua, mostrarAviso, sumarDias } from './
 import { validarCampo } from './validacion.js';
 import { pintarTurnos } from './selector-turnos.js';
 import { servicioDeLaUrl } from './parametro-servicio.js';
+import { entrarVista, escalonar, fundir, quitarEscalonado, reiniciarClase } from './movimiento.js';
 
 const VENTANA_DIAS = 14;
 const MAX_DIAS_ADELANTE = 90;
@@ -44,15 +45,20 @@ function enfocarPrimerError(contenedor) {
 // ---------------------------------------------------------------------------
 // Navegación entre pasos
 // ---------------------------------------------------------------------------
-function irAPaso(paso, { mensaje, enfocar = true } = {}) {
+function irAPaso(paso, { mensaje, enfocar = true, animar = true } = {}) {
+  const direccion = Math.sign(paso - estado.paso);
   estado.paso = paso;
   for (let i = 1; i <= 4; i += 1) $(`paso-${i}`).hidden = i !== paso;
+  // El paso nuevo entra desde el lado del avance (adelante: desde la derecha; atrás: desde la izquierda).
+  if (animar) entrarVista($(`paso-${paso}`), direccion);
   for (const li of document.querySelectorAll('#progreso .paso')) {
     const n = Number(li.dataset.paso);
-    li.classList.remove('border-primario', 'border-salvia', 'border-tinta/20', 'font-bold', 'text-tinta', 'text-tinta-2');
-    if (n < paso) li.classList.add('border-salvia', 'text-tinta');
-    else if (n === paso) li.classList.add('border-primario', 'font-bold', 'text-tinta');
-    else li.classList.add('border-tinta/20', 'text-tinta-2');
+    // La pista gris (border-tinta/20) queda; el relleno de color crece con CSS (.paso::before).
+    li.classList.remove('font-bold', 'text-tinta', 'text-tinta-2');
+    li.dataset.estado = n < paso ? 'hecho' : n === paso ? 'actual' : 'pendiente';
+    if (n < paso) li.classList.add('text-tinta');
+    else if (n === paso) li.classList.add('font-bold', 'text-tinta');
+    else li.classList.add('text-tinta-2');
     if (n === paso) li.setAttribute('aria-current', 'step');
     else li.removeAttribute('aria-current');
   }
@@ -85,7 +91,7 @@ async function cargarServicios() {
     ...estado.servicios.map((s) =>
       el(
         'label',
-        { class: 'flex min-h-11 cursor-pointer gap-3 rounded-lg border-2 border-transparent bg-white p-4 shadow-sm has-[:checked]:border-primario' },
+        { class: 'tarjeta-opcion flex min-h-11 cursor-pointer gap-3 rounded-lg border-2 border-transparent bg-white p-4 shadow-sm has-[:checked]:border-primario' },
         el('input', {
           type: 'radio',
           name: 'servicio',
@@ -104,6 +110,14 @@ async function cargarServicios() {
     ),
   );
 }
+
+// Al elegir un servicio, su tarjeta da un pulso (anillo que se expande) que confirma la selección.
+$('lista-servicios').addEventListener('change', (evento) => {
+  const tarjeta = evento.target.closest('.tarjeta-opcion');
+  if (!tarjeta) return;
+  errorCampo('servicio', null);
+  reiniciarClase(tarjeta, 'pulso-seleccion');
+});
 
 $('continuar-1').addEventListener('click', () => {
   const marcado = document.querySelector('input[name="servicio"]:checked');
@@ -127,16 +141,20 @@ function limiteHasta() {
   return sumarDias(estado.hoy, MAX_DIAS_ADELANTE);
 }
 
-function pintar(turnos) {
+/** @param {{entrada?: boolean, recienElegido?: number|null}} [mov] entrada: días escalonados (solo al cargar). */
+function pintar(turnos, { entrada = false, recienElegido = null } = {}) {
+  quitarEscalonado($('lista-turnos'));
   pintarTurnos($('lista-turnos'), turnos, {
     seleccionadoId: estado.turno?.id ?? null,
+    recienElegidoId: recienElegido,
     alElegir: (t) => {
       estado.turno = t;
       errorCampo('turno', null);
-      pintar(turnos);
+      pintar(turnos, { recienElegido: t.id });
       $('continuar-2').focus();
     },
   });
+  if (entrada) escalonar($('lista-turnos'));
 }
 
 async function cargarTurnos() {
@@ -152,7 +170,7 @@ async function cargarTurnos() {
     const turnos = await api(`/turnos?${params}`);
     // Si el turno elegido ya no está libre, se descarta.
     if (estado.turno && turnos.some((t) => t.id === estado.turno.id && !t.disponible)) estado.turno = null;
-    pintar(turnos);
+    pintar(turnos, { entrada: true });
   } catch (err) {
     lista.replaceChildren(el('p', { class: 'text-error' }, err.message));
   } finally {
@@ -312,7 +330,11 @@ function pintarResumen() {
     ['Paciente', paciente.nombres],
     ['Correo', paciente.correo],
   ];
-  $('resumen').replaceChildren(...filas.flatMap(([k, v]) => [el('dt', { class: 'text-tinta-2' }, k), el('dd', { class: 'font-bold break-words' }, v)]));
+  const resumen = $('resumen');
+  const antes = resumen.textContent;
+  resumen.replaceChildren(...filas.flatMap(([k, v]) => [el('dt', { class: 'text-tinta-2' }, k), el('dd', { class: 'font-bold break-words' }, v)]));
+  // Solo si cambió algo (otro turno, otros datos), un fundido breve lo hace notar.
+  if (antes && antes !== resumen.textContent) fundir(resumen);
 }
 
 /** Lleva cada error del servidor al campo correspondiente. */
@@ -417,7 +439,7 @@ function mostrarComprobante(c) {
 $('imprimir').addEventListener('click', () => window.print());
 
 // ---------------------------------------------------------------------------
-irAPaso(1, { enfocar: false });
+irAPaso(1, { enfocar: false, animar: false });
 // Desde la portada («Agendar este servicio»): marca el servicio si el parámetro es válido.
 cargarServicios().then(() => {
   const preseleccionado = servicioDeLaUrl(location.search, estado.servicios);

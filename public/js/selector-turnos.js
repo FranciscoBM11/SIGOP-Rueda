@@ -15,10 +15,11 @@ const CLASES = {
  * @param {object} opciones
  * @param {number|null} [opciones.seleccionadoId] turno elegido
  * @param {{fecha: string, horaInicio: string}|null} [opciones.actual] horario actual de la cita (al reprogramar)
+ * @param {number|null} [opciones.recienElegidoId] turno recién tocado (pequeño pulso de confirmación)
  * @param {(turno) => void} opciones.alElegir
  * @param {string} [opciones.vacio] mensaje si no hay turnos
  */
-export function pintarTurnos(lista, turnos, { seleccionadoId = null, actual = null, alElegir, vacio } = {}) {
+export function pintarTurnos(lista, turnos, { seleccionadoId = null, recienElegidoId = null, actual = null, alElegir, vacio } = {}) {
   if (turnos.length === 0) {
     lista.replaceChildren(
       el('p', { class: 'rounded-lg bg-white p-4 text-tinta-2 shadow-sm' }, vacio ?? 'No hay turnos en estas fechas. Prueba con las siguientes.'),
@@ -58,7 +59,7 @@ export function pintarTurnos(lista, turnos, { seleccionadoId = null, actual = nu
               clase = CLASES.ocupado;
               sufijo = ', ocupado';
             } else if (elegido) {
-              clase = CLASES.elegido;
+              clase = t.id === recienElegidoId ? `${CLASES.elegido} turno-recien-elegido` : CLASES.elegido;
             }
             return el(
               'button',

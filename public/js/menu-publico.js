@@ -36,9 +36,20 @@ function pintarEscritorio() {
   // Con el menú encogido, el nombre de cada opción aparece en un globo (CSS) al pasar el cursor o enfocar.
 }
 
+let temporizadorAnima = null;
+
 function alternarEscritorio() {
-  if (estaEncogido()) raiz.removeAttribute('data-menu');
-  else raiz.setAttribute('data-menu', 'encogido');
+  if (estaEncogido()) {
+    raiz.removeAttribute('data-menu');
+    // Los textos aparecen con un fundido mientras el menú crece (CSS: [data-menu-anima]).
+    clearTimeout(temporizadorAnima);
+    raiz.setAttribute('data-menu-anima', 'desplegar');
+    temporizadorAnima = setTimeout(() => raiz.removeAttribute('data-menu-anima'), 320);
+  } else {
+    clearTimeout(temporizadorAnima);
+    raiz.removeAttribute('data-menu-anima');
+    raiz.setAttribute('data-menu', 'encogido');
+  }
   guardar(estaEncogido() ? 'encogido' : 'desplegado');
   pintarEscritorio();
 }
@@ -74,6 +85,59 @@ function cerrar({ devolverFoco = true } = {}) {
 
 function enfocables() {
   return [...menu.querySelectorAll('a[href], button:not([disabled])')].filter((n) => n.getClientRects().length > 0);
+}
+
+// ---- Indicador deslizante ----
+// Una barra fina a la izquierda del ítem activo: al cargar se desliza hasta él; con
+// el mouse sigue al ítem señalado y vuelve al activo al salir. Solo transform.
+// Sin JS no existe (el ítem activo ya se marca con fondo blanco).
+
+function iniciarIndicador() {
+  const nav = menu.querySelector('nav');
+  const activo = nav?.querySelector('[aria-current="page"]');
+  if (!nav || !activo || window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+  const barra = document.createElement('span');
+  barra.className = 'indicador-menu';
+  barra.setAttribute('aria-hidden', 'true');
+  nav.append(barra); // al final: no altera el orden de la cascada (nth-child)
+
+  const ir = (enlace) => {
+    // Alto del ítem (tamaño, no animado) y posición con transform.
+    barra.style.height = `${enlace.offsetHeight - 16}px`;
+    barra.style.transform = `translateY(${enlace.offsetTop + 8}px)`;
+  };
+
+  // Llegada: parte del primer ítem y se desliza al activo después de la cascada.
+  const primero = nav.querySelector('a[href]');
+  ir(primero);
+  requestAnimationFrame(() =>
+    requestAnimationFrame(() => {
+      barra.setAttribute('data-llegando', '');
+      barra.setAttribute('data-listo', '');
+      ir(activo);
+      setTimeout(() => barra.removeAttribute('data-llegando'), 1100);
+    }),
+  );
+
+  const conMouse = window.matchMedia('(hover: hover) and (pointer: fine)');
+  nav.addEventListener('pointerover', (evento) => {
+    const enlace = evento.target.closest('a.enlace-menu');
+    if (enlace && conMouse.matches) ir(enlace);
+  });
+  nav.addEventListener('pointerleave', () => ir(activo));
+  nav.addEventListener('focusin', (evento) => {
+    if (evento.target.matches('a.enlace-menu')) ir(evento.target);
+  });
+  nav.addEventListener('focusout', () => ir(activo));
+  // Al encoger/desplegar el menú o cambiar el tamaño, los ítems cambian de alto.
+  // (El primer aviso llega al observar; se ignora para no saltarse el deslizamiento de llegada.)
+  let primerAviso = true;
+  if ('ResizeObserver' in window) {
+    new ResizeObserver(() => {
+      if (primerAviso) primerAviso = false;
+      else ir(activo);
+    }).observe(nav);
+  }
 }
 
 // ---- Conexión ----
@@ -124,6 +188,7 @@ if (menu && velo && botonMenu && tirador) {
 
   escritorio.addEventListener('change', pintar);
   pintar();
+  iniciarIndicador();
   // Las transiciones se activan después del primer pintado (así no anima al cargar).
   requestAnimationFrame(() => raiz.setAttribute('data-menu-listo', ''));
 }

@@ -6,6 +6,7 @@
 import { api, el, formatearFecha, hoyManagua, mostrarAviso, sumarDias } from './api.js';
 import { iniciarPanel, manejarErrorSesion } from './admin-comun.js';
 import { pintarTurnos } from './selector-turnos.js';
+import { entrarVista, escalonar, fundir, movimientoReducido, quitarEscalonado } from './movimiento.js';
 
 const $ = (id) => document.getElementById(id);
 
@@ -44,6 +45,10 @@ const estado = {
   gestion: { cita: null, desde: null, turno: null },
   // Diálogo de triaje
   triaje: null,
+  // Movimiento: cita cuyo estado acaba de cambiar (fundido de la insignia) y cifras de los filtros ya mostradas.
+  cambio: null,
+  cuentas: null,
+  destello: null, // código de la cita recién actualizada (destello breve en su fila)
 };
 
 // ---------------------------------------------------------------------------
@@ -62,9 +67,19 @@ function plural(n, uno, varios) {
   return `${n} ${n === 1 ? uno : varios}`;
 }
 
-function insignia(estadoCita) {
+function insignia(estadoCita, extra = '') {
   const e = ESTADOS[estadoCita] ?? { texto: estadoCita, clase: 'border-tinta/10' };
-  return el('span', { class: `inline-flex whitespace-nowrap rounded-full border px-3 py-1 text-sm font-bold ${e.clase}` }, e.texto);
+  return el('span', { class: `inline-flex whitespace-nowrap rounded-full border px-3 py-1 text-sm font-bold ${e.clase} ${extra}` }, e.texto);
+}
+
+/** Insignia del estado; si acaba de cambiar, la anterior se desvanece encima de la nueva (solo opacidad). */
+function insigniaConCambio(c) {
+  const cambio = estado.cambio;
+  if (!cambio || cambio.codigo !== c.codigo || cambio.anterior === c.estado || movimientoReducido()) return insignia(c.estado);
+  const anterior = insignia(cambio.anterior, 'insignia-anterior');
+  anterior.setAttribute('aria-hidden', 'true');
+  anterior.addEventListener('animationend', () => anterior.remove(), { once: true });
+  return el('span', { class: 'cambio-insignia' }, anterior, insignia(c.estado, 'insignia-nueva'));
 }
 
 // CU-16 E2: la médica cambió su horario y esta cita quedó fuera; recepción la reprograma.
@@ -72,7 +87,7 @@ function insignias(c) {
   return el(
     'span',
     { class: 'inline-flex flex-wrap gap-1' },
-    insignia(c.estado),
+    insigniaConCambio(c),
     c.fueraDeHorario
       ? el('span', { class: 'inline-flex whitespace-nowrap rounded-full border border-error/30 bg-error/10 px-3 py-1 text-sm font-bold text-error' }, 'Fuera de horario')
       : null,
@@ -104,7 +119,8 @@ function tratarError(err, mostrar = avisoError) {
 // ---------------------------------------------------------------------------
 // Carga y dibujo de la agenda (CU-11)
 // ---------------------------------------------------------------------------
-async function cargar({ conservarAviso = false } = {}) {
+/** @param {{conservarAviso?: boolean, entrada?: boolean}} [opciones] entrada: filas escalonadas (al cambiar de día). */
+async function cargar({ conservarAviso = false, entrada = true } = {}) {
   if (!conservarAviso) avisoOk('');
   mostrarAviso($('aviso'), '');
   $('fecha').value = estado.fecha;
@@ -122,10 +138,11 @@ async function cargar({ conservarAviso = false } = {}) {
     tratarError(err);
     return;
   }
-  pintar();
+  pintar({ entrada });
 }
 
-function pintar() {
+/** @param {{entrada?: boolean, fundido?: boolean}} [mov] entrada: escalonado; fundido: cambio de filtro. */
+function pintar({ entrada = false, fundido = false } = {}) {
   const enEspera = estado.citas.filter((c) => c.estado === 'EN_ESPERA').length;
   $('resumen').textContent = `${plural(estado.citas.length, 'cita', 'citas')}, ${enEspera} en espera`;
   pintarFiltros();
@@ -141,12 +158,28 @@ function pintar() {
     vacio.hidden = true;
   }
   $('contenedor-tabla').classList.toggle('md:block', visibles.length > 0);
+  quitarEscalonado($('filas'));
+  quitarEscalonado($('tarjetas'));
   $('filas').replaceChildren(...visibles.map(fila));
   $('tarjetas').replaceChildren(...visibles.map(tarjeta));
+  estado.cambio = null;
+  estado.destello = null;
+  // Escalonado muy corto (25 ms, con tope): la agenda se usa muchas veces al día.
+  if (entrada) {
+    escalonar($('filas'), 'entra-escalonado-rapido');
+    escalonar($('tarjetas'), 'entra-escalonado-rapido');
+  } else if (fundido) {
+    fundir($('filas'));
+    fundir($('tarjetas'));
+  }
 }
 
 function pintarFiltros() {
   const cuenta = (e) => (e === 'TODAS' ? estado.citas.length : estado.citas.filter((c) => c.estado === e).length);
+  const previas = estado.cuentas;
+  estado.cuentas = Object.fromEntries(ORDEN_FILTROS.map((e) => [e, cuenta(e)]));
+  // La cifra que cambió da un pulso breve (no en la primera carga).
+  const cifra = (e) => el('span', { class: `tabular-nums ${previas && previas[e] !== estado.cuentas[e] ? 'cifra-cambia' : ''}` }, String(estado.cuentas[e]));
   $('filtros').replaceChildren(
     ...ORDEN_FILTROS.map((e) => {
       const activo = estado.filtro === e;
@@ -157,11 +190,13 @@ function pintarFiltros() {
           'aria-pressed': String(activo),
           class: `min-h-11 rounded-full border px-4 font-bold ${activo ? 'border-tinta bg-tinta text-white' : 'border-tinta/20 bg-white hover:bg-bruma'}`,
           onclick: () => {
+            if (estado.filtro === e) return;
             estado.filtro = e;
-            pintar();
+            pintar({ fundido: true });
           },
         },
-        `${e === 'TODAS' ? 'Todas' : ESTADOS[e].plural} ${cuenta(e)}`,
+        `${e === 'TODAS' ? 'Todas' : ESTADOS[e].plural} `,
+        cifra(e),
       );
     }),
   );
@@ -267,9 +302,12 @@ function alternarMenuAcciones(c, boton) {
   const ancho = panel.offsetWidth;
   const alto = panel.offsetHeight;
   const izquierda = Math.max(8, Math.min(r.right - ancho, window.innerWidth - ancho - 8));
-  const arriba = r.bottom + 6 + alto > window.innerHeight ? Math.max(8, r.top - 6 - alto) : r.bottom + 6;
+  const encima = r.bottom + 6 + alto > window.innerHeight;
+  const arriba = encima ? Math.max(8, r.top - 6 - alto) : r.bottom + 6;
   panel.style.left = `${izquierda}px`;
   panel.style.top = `${arriba}px`;
+  // Crece desde la esquina más cercana al botón «⋯».
+  panel.style.transformOrigin = `${encima ? 'bottom' : 'top'} right`;
   panel.querySelector('button')?.focus();
 }
 
@@ -285,11 +323,16 @@ $('menu-acciones').addEventListener('focusout', (ev) => {
 window.addEventListener('resize', () => cerrarMenuAcciones());
 window.addEventListener('scroll', () => cerrarMenuAcciones(), { passive: true });
 
+/** Destello breve sobre la fila o tarjeta de la cita que se acaba de actualizar. */
+function claseDestello(c) {
+  return estado.destello === c.codigo && !movimientoReducido() ? 'fila-destello' : '';
+}
+
 function fila(c) {
   const resaltada = enCurso(c);
   return el(
     'tr',
-    { class: `border-b border-tinta/10 last:border-0 ${resaltada ? 'bg-acento/10 shadow-[inset_4px_0_0_var(--color-acento)]' : ''}` },
+    { class: `border-b border-tinta/10 last:border-0 ${resaltada ? 'bg-acento/10 shadow-[inset_4px_0_0_var(--color-acento)]' : ''} ${claseDestello(c)}` },
     el('td', { class: 'px-4 py-4 align-top font-titulo text-lg font-bold' }, c.horaInicio, resaltada ? el('span', { class: 'sr-only' }, ' (en curso)') : null),
     el('td', { class: 'px-4 py-4 align-top' }, el('span', { class: 'block break-words' }, c.paciente), el('span', { class: 'block text-sm text-tinta-2' }, c.cedula)),
     el('td', { class: 'px-4 py-4 align-top' }, c.servicio),
@@ -304,7 +347,7 @@ function tarjeta(c) {
   const botones = acciones(c);
   return el(
     'li',
-    { class: `rounded-xl bg-white p-4 shadow-sm ${resaltada ? 'border-l-4 border-acento' : ''}` },
+    { class: `rounded-xl bg-white p-4 shadow-sm ${resaltada ? 'border-l-4 border-acento' : ''} ${claseDestello(c)}` },
     el(
       'div',
       { class: 'flex gap-3' },
@@ -340,13 +383,15 @@ async function cambiarEstado(c, nuevo, boton, mostrarError) {
       mostrarError(err.message);
     } else {
       // La agenda puede estar desactualizada (otro usuario cambió la cita).
-      await cargar();
+      await cargar({ entrada: false });
       avisoError(err.message);
     }
     return false;
   }
   avisoOk(`Cita ${c.codigo} de ${c.paciente}: ${EXITO_POR_ESTADO[nuevo]}.`);
-  await cargar({ conservarAviso: true });
+  estado.cambio = { codigo: c.codigo, anterior: c.estado };
+  estado.destello = c.codigo;
+  await cargar({ conservarAviso: true, entrada: false });
   return true;
 }
 
@@ -415,12 +460,13 @@ $('triaje-atendida').addEventListener('click', async (ev) => {
 });
 
 // Gestión desde recepción (CU-12 A3 y CU-13)
-function vistaGestion(vista) {
-  $('gestion-opciones').hidden = vista !== 'opciones';
-  $('gestion-no-asistio').hidden = vista !== 'no-asistio';
-  $('gestion-cancelar').hidden = vista !== 'cancelar';
-  $('gestion-reprogramar').hidden = vista !== 'reprogramar';
+const VISTAS_GESTION = { opciones: 'gestion-opciones', 'no-asistio': 'gestion-no-asistio', cancelar: 'gestion-cancelar', reprogramar: 'gestion-reprogramar' };
+
+function vistaGestion(vista, { animar = true } = {}) {
+  for (const [nombre, id] of Object.entries(VISTAS_GESTION)) $(id).hidden = vista !== nombre;
   $('gestion-aviso').hidden = true;
+  // Dentro del diálogo: la confirmación entra desde la derecha; «Volver» a las opciones, desde la izquierda.
+  if (animar) entrarVista($(VISTAS_GESTION[vista]), vista === 'opciones' ? -1 : 1);
 }
 
 function avisoGestion(texto) {
@@ -438,7 +484,7 @@ function abrirGestion(c, vista = 'opciones') {
   $('g-abrir-cancelar').hidden = !c.transiciones.includes('CANCELADA');
   $('g-sin-opciones').hidden = !($('g-no-asistio').hidden && $('g-abrir-reprogramar').hidden && $('g-abrir-cancelar').hidden);
   for (const id of ['g-no-asistio', 'g-si-no-asistio', 'g-si-cancelar', 'g-confirmar-reprogramar']) $(id).disabled = false;
-  vistaGestion(vista);
+  vistaGestion(vista, { animar: false }); // el diálogo ya tiene su propia entrada
   $('dlg-gestion').showModal();
   if (vista === 'reprogramar') cargarTurnos();
 }
@@ -465,7 +511,9 @@ $('g-si-cancelar').addEventListener('click', async (ev) => {
     await api(`/admin/citas/${c.codigo}/cancelacion`, { metodo: 'POST' });
     $('dlg-gestion').close();
     avisoOk(`Cita ${c.codigo} de ${c.paciente}: ${EXITO_POR_ESTADO.CANCELADA}.`);
-    await cargar({ conservarAviso: true });
+    estado.cambio = { codigo: c.codigo, anterior: c.estado };
+    estado.destello = c.codigo;
+    await cargar({ conservarAviso: true, entrada: false });
   } catch (err) {
     boton.disabled = false;
     tratarError(err, avisoGestion);
@@ -539,7 +587,8 @@ $('g-confirmar-reprogramar').addEventListener('click', async (ev) => {
       `Cita ${c.codigo} reprogramada para el ${nuevo}. ` +
         (r.correoEnviado ? 'La paciente recibirá el nuevo horario por correo.' : 'El correo no salió al primer intento y se está reintentando; si es urgente, avisa a la paciente por teléfono.'),
     );
-    await cargar({ conservarAviso: true });
+    estado.destello = c.codigo; // reprogramada: si sigue en este día, su fila destella
+    await cargar({ conservarAviso: true, entrada: false });
   } catch (err) {
     boton.disabled = false;
     if (manejarErrorSesion(err)) return;

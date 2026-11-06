@@ -9,3 +9,15 @@ try {
 } catch (e) {
   // Sin almacenamiento: se usa el valor por defecto.
 }
+
+// Cascada de entrada del menú (CSS: [data-menu-cascada]) solo en la PRIMERA página de
+// la sesión: el menú se ve en cada navegación y repetirla cansaría. Sin almacenamiento,
+// no hay cascada (el menú simplemente está).
+try {
+  if (!window.sessionStorage.getItem('sigop.menu-visto')) {
+    window.sessionStorage.setItem('sigop.menu-visto', '1');
+    document.documentElement.setAttribute('data-menu-cascada', '');
+  }
+} catch (e) {
+  // Sin almacenamiento de sesión: sin cascada.
+}
