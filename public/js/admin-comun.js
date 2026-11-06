@@ -80,7 +80,7 @@ export async function iniciarPanel({ rol } = {}) {
     texto.textContent = `Esta sección es solo para ${rol === 'MEDICO' ? 'la médica' : 'recepción'}.`;
     const volver = Object.assign(document.createElement('a'), {
       href: '/admin/agenda.html',
-      className: 'mt-3 inline-flex min-h-11 items-center font-bold text-baya underline',
+      className: 'mt-3 inline-flex min-h-11 items-center font-bold text-primario underline',
       textContent: '← Volver a la agenda',
     });
     aviso.append(texto, volver);

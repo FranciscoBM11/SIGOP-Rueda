@@ -5,22 +5,65 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="description" content="Política de privacidad y consentimiento informado de la Clínica Rueda (Ley N.º 787).">
   <title>Política de privacidad — Clínica Rueda</title>
+  <link rel="icon" type="image/png" href="/img/logo.png">
   <link rel="stylesheet" href="/css/app.css">
+  <script src="/js/menu-estado.js"></script>
+  <script type="module" src="/js/menu-publico.js"></script>
 </head>
-<body class="min-h-screen flex flex-col">
-  <header class="bg-baya text-white">
-    <div class="mx-auto max-w-3xl px-4 py-4">
-      <a href="/" class="block">
-        <span class="block font-titulo text-xl font-bold">Clínica Rueda</span>
-        <span class="block text-sm text-white/90">Ginecología y obstetricia</span>
-      </a>
-    </div>
+<body class="con-barra min-h-screen lg:flex">
+  <a href="#contenido" class="sr-only focus:not-sr-only focus:absolute focus:left-4 focus:top-4 focus:z-50 focus:rounded focus:bg-white focus:px-4 focus:py-2">Saltar al contenido</a>
+  <!-- Barra superior en el teléfono: logo y botón del menú -->
+  <header class="sticky top-0 z-20 flex items-center justify-between gap-3 border-b border-tinta/10 bg-white/95 px-4 py-2 lg:hidden">
+    <a href="/" class="flex min-h-11 items-center gap-2">
+      <img src="/img/logo.png" width="367" height="512" alt="Emblema" class="h-10 w-auto shrink-0">
+      <span class="font-titulo text-lg font-bold">Clínica Rueda</span>
+    </a>
+    <button type="button" id="abrir-menu" aria-expanded="false" aria-controls="menu-publico"
+            class="inline-flex min-h-11 items-center gap-2 rounded-lg border border-tinta/20 px-3 font-bold hover:bg-bruma">
+      <span class="h-5 w-5"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 7h16M4 12h16M4 17h16"/></svg></span>Menú
+    </button>
   </header>
+  <div id="velo-menu" class="velo-menu fixed inset-0 z-30 bg-black/60 lg:hidden"></div>
 
-  <main class="flex-1 mx-auto w-full max-w-3xl px-4 py-8">
+  <!-- Menú lateral compartido del portal público.
+       Escritorio: desplegado o encogido a íconos con el tirador. Teléfono: cajón. (menu-publico.js) -->
+  <aside id="menu-publico" class="menu-lateral superficie-oscura bg-tinta text-white" aria-label="Menú principal">
+    <div class="menu-interior flex h-full flex-col overflow-y-auto overflow-x-hidden">
+      <div class="menu-cabecera flex items-center justify-between gap-3 px-4 pt-6">
+        <a href="/" class="flex min-w-0 items-center gap-3">
+          <img src="/img/logo-claro.png" width="367" height="512" alt="Emblema" class="h-12 w-auto shrink-0">
+          <span class="menu-texto min-w-0">
+            <span class="block font-titulo text-xl font-bold leading-tight">Clínica Rueda</span>
+            <span class="block text-sm text-white/75">Dra. Sayda Rueda</span>
+          </span>
+        </a>
+        <button type="button" id="cerrar-menu" class="flex h-11 w-11 shrink-0 items-center justify-center rounded-lg hover:bg-white/10 lg:hidden">
+          <span class="h-5 w-5"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 6l12 12M18 6 6 18"/></svg></span><span class="sr-only">Cerrar menú</span>
+        </button>
+      </div>
+      <nav class="mt-8 grid gap-1 px-3" aria-label="Principal">
+        <a href="/" class="enlace-menu" data-etiqueta="Inicio"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 10.5 12 3l9 7.5"/><path d="M5 9.5V21h14V9.5"/><path d="M10 21v-6h4v6"/></svg><span class="menu-texto">Inicio</span></a>
+        <a href="/agendar.html" class="enlace-menu" data-etiqueta="Agendar cita"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="4.5" width="18" height="16.5" rx="2"/><path d="M3 9.5h18M8 2.5v4M16 2.5v4M12 13v5M9.5 15.5h5"/></svg><span class="menu-texto">Agendar cita</span></a>
+        <a href="/mi-cita.html" class="enlace-menu" data-etiqueta="Mi cita"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="4.5" width="18" height="16.5" rx="2"/><path d="M3 9.5h18M8 2.5v4M16 2.5v4"/><path d="m9 15.5 2 2 4-4"/></svg><span class="menu-texto">Mi cita</span></a>
+        <a href="/resultados.html" class="enlace-menu" data-etiqueta="Resultados"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M14 3H6.5A1.5 1.5 0 0 0 5 4.5v15A1.5 1.5 0 0 0 6.5 21h11a1.5 1.5 0 0 0 1.5-1.5V8z"/><path d="M14 3v5h5M9 13h6M9 17h6"/></svg><span class="menu-texto">Resultados</span></a>
+        <hr class="my-3 border-white/15">
+        <a href="/calculadora.html" class="enlace-menu" data-etiqueta="Calculadora de fecha probable de parto"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="5" y="2.5" width="14" height="19" rx="2"/><path d="M8.5 6.5h7v3h-7z"/><path d="M8.5 13.5h.01M12 13.5h.01M15.5 13.5h.01M8.5 17.5h.01M12 17.5h.01M15.5 17.5h.01"/></svg><span class="menu-texto">Calculadora de fecha probable de parto</span></a>
+        <a href="/admin" class="enlace-menu" data-etiqueta="Acceso del personal"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="4.5" y="10.5" width="15" height="10.5" rx="2"/><path d="M8 10.5V7a4 4 0 0 1 8 0v3.5"/></svg><span class="menu-texto">Acceso del personal</span></a>
+      </nav>
+      <p class="menu-texto mt-auto px-6 py-6 text-sm text-white/70"><a href="/privacidad.html" class="underline hover:text-white" aria-current="page">Política de privacidad</a></p>
+    </div>
+    <!-- Tirador: encoge/despliega (escritorio) o abre/cierra (teléfono) -->
+    <button type="button" id="tirador-menu" class="tirador-menu" aria-controls="menu-publico" aria-expanded="true" aria-label="Encoger menú">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" class="h-4 w-4"><path d="m10 6 6 6-6 6"/></svg>
+    </button>
+  </aside>
+
+  <div class="flex min-w-0 flex-1 flex-col">
+
+  <main id="contenido" class="flex-1 mx-auto w-full max-w-3xl px-4 py-8 sm:px-6 lg:px-10 lg:py-12">
     <h1 class="font-titulo text-2xl sm:text-3xl font-bold">Política de privacidad y consentimiento informado</h1>
     <p class="mt-2 text-sm text-tinta-2">Versión v1.0 · Conforme a la Ley N.º 787 de Protección de Datos Personales de Nicaragua.</p>
-    <p class="mt-2 rounded-lg border-l-4 border-sol bg-white p-3 text-sm">Texto de demostración del proyecto académico SIGOP-Rueda. Antes de usar el sistema con pacientes reales debe revisarlo y aprobarlo la clínica.</p>
+    <p class="mt-2 rounded-lg border-l-4 border-acento bg-white p-3 text-sm">Texto de demostración del proyecto académico SIGOP-Rueda. Antes de usar el sistema con pacientes reales debe revisarlo y aprobarlo la clínica.</p>
 
     <div class="mt-6 grid gap-6">
       <section>
@@ -57,11 +100,25 @@
       </section>
     </div>
 
-    <p class="mt-8"><a href="/agendar.html" class="inline-flex min-h-11 items-center rounded-lg bg-baya px-5 font-bold text-white hover:bg-baya/90">Volver a agendar</a></p>
+    <p class="mt-8"><a href="/agendar.html" class="inline-flex min-h-11 items-center rounded-lg bg-primario px-5 font-bold text-white hover:bg-tinta-2">Volver a agendar</a></p>
   </main>
 
   <footer class="border-t border-tinta/10">
-    <p class="mx-auto max-w-3xl px-4 py-4 text-sm text-tinta-2">Clínica Rueda – Ginecología y Obstetricia.</p>
+    <div class="mx-auto flex max-w-5xl flex-col gap-4 px-4 py-6 text-sm text-tinta-2 sm:flex-row sm:items-center sm:gap-6 sm:px-6 lg:px-10">
+      <a href="/" class="flex shrink-0 items-center gap-3 text-tinta">
+        <img src="/img/logo.png" width="367" height="512" alt="Emblema" loading="lazy" decoding="async" class="h-10 w-auto">
+        <span><span class="block font-titulo text-base font-bold">Clínica Rueda</span><span class="block text-xs text-tinta-2">Ginecología y Obstetricia</span></span>
+      </a>
+      <p>Tus datos se protegen conforme a la Ley N.º 787 de Protección de Datos Personales. <a href="/privacidad.html" class="underline">Política de privacidad</a>.</p>
+    </div>
   </footer>
+  </div>
+  <!-- Contacto rápido por WhatsApp (mensaje precargado, sin datos personales) -->
+  <a href="https://wa.me/50577768649?text=Hola%2C%20quisiera%20informaci%C3%B3n%20sobre%20una%20cita%20en%20Cl%C3%ADnica%20Rueda" target="_blank" rel="noopener noreferrer" class="boton-whatsapp print:hidden"
+     aria-label="Escribir a la Clínica Rueda por WhatsApp (se abre en otra pestaña)" title="Escríbenos por WhatsApp"><svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true" class="h-7 w-7"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 0 1-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 0 1-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 0 1 2.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0 0 12.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 0 0 5.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 0 0-3.48-8.413z"/></svg></a>
+  <!-- Barra fija «Agendar cita» en el teléfono -->
+  <div class="barra-agendar print:hidden lg:hidden">
+    <a href="/agendar.html" class="fila-accion flex min-h-12 w-full items-center justify-center gap-2 rounded-xl bg-primario px-5 font-bold text-white hover:bg-tinta-2">Agendar cita <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" class="h-5 w-5 shrink-0"><path d="M5 12h14M13 6l6 6-6 6"/></svg></a>
+  </div>
 </body>
 </html>

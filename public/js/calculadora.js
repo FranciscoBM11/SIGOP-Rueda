@@ -1,4 +1,4 @@
-// P1 – Inicio y calculadora de Fecha Probable de Parto (CU-01).
+// Calculadora de Fecha Probable de Parto (CU-01). Antes vivía en la portada (inicio.js).
 import { api, el, formatearFecha, hoyManagua, mostrarAviso } from './api.js';
 
 const formulario = document.getElementById('form-fpp');
@@ -20,7 +20,7 @@ function marcarError(texto) {
 }
 
 function pintarResultado(r) {
-  const progreso = el('div', { class: 'h-full rounded-full bg-sol' });
+  const progreso = el('div', { class: 'h-full rounded-full bg-primario' });
   progreso.style.width = `${Math.min(100, ((r.semanas * 7 + r.dias) / 280) * 100)}%`;
 
   resultado.replaceChildren(
@@ -29,7 +29,7 @@ function pintarResultado(r) {
       { class: 'grid gap-4 sm:grid-cols-3' },
       el(
         'div',
-        { class: 'rounded-lg bg-baya p-4 text-white' },
+        { class: 'rounded-lg bg-primario p-4 text-white' },
         el('p', { class: 'text-sm text-white/90' }, 'Fecha probable de parto'),
         el('p', { class: 'font-titulo text-xl font-bold' }, formatearFecha(r.fpp)),
       ),
@@ -81,7 +81,7 @@ function pintarResultado(r) {
       { class: 'mt-6' },
       el(
         'a',
-        { href: '/agendar.html', class: 'inline-flex min-h-11 items-center rounded-lg bg-baya px-5 font-bold text-white hover:bg-baya/90' },
+        { href: '/agendar.html', class: 'inline-flex min-h-11 items-center rounded-lg bg-primario px-5 font-bold text-white hover:bg-tinta-2' },
         'Agendar mi control prenatal',
       ),
     ),

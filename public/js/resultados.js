@@ -29,7 +29,7 @@ function cerrarResultados(mensaje) {
 }
 
 function tarjetaInforme(informe) {
-  const boton = el('button', { type: 'button', class: 'min-h-11 shrink-0 rounded-lg bg-baya px-4 font-bold text-white hover:bg-baya/90 disabled:opacity-60' }, 'Descargar');
+  const boton = el('button', { type: 'button', class: 'min-h-11 shrink-0 rounded-lg bg-primario px-4 font-bold text-white hover:bg-tinta-2 disabled:opacity-60' }, 'Descargar');
   boton.addEventListener('click', async () => {
     mostrarAviso($('aviso-resultados'), '');
     boton.disabled = true;

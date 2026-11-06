@@ -59,13 +59,17 @@ describe('NotificacionesService', () => {
     expect(repo.marcarEnviada).toHaveBeenCalledWith(15);
   });
 
-  test('E1: el proveedor rechaza → FALLIDA sin datos personales y no lanza', async () => {
+  test('E1: el proveedor rechaza → registra el fallo sin datos personales y no lanza', async () => {
     const repo = repoSimulado();
     const err = Object.assign(new Error('Recipient maria@ejemplo.com rejected'), { code: 'EENVELOPE', responseCode: 550, command: 'RCPT TO' });
     const canal = { canal: 'CORREO', enviar: jest.fn().mockRejectedValue(err) };
-    const servicio = crearNotificacionesService({ notificacionesRepo: repo, canal });
+    const servicio = crearNotificacionesService({ notificacionesRepo: repo, canal, esperar: () => Promise.resolve() });
     expect(await servicio.enviar(15, 'CONFIRMACION', 'maria@ejemplo.com', datos)).toBe(false);
-    expect(repo.marcarFallida).toHaveBeenCalledWith(15, 'EENVELOPE 550 RCPT TO');
+    await servicio.esperarReintentos();
+    for (const llamada of repo.marcarFallida.mock.calls) {
+      expect(llamada[1]).toBe('EENVELOPE 550 RCPT TO');
+      expect(JSON.stringify(llamada)).not.toContain('maria@ejemplo.com');
+    }
   });
 
   test('si tampoco se puede registrar el resultado, no lanza', async () => {
@@ -73,6 +77,87 @@ describe('NotificacionesService', () => {
     const canal = { canal: 'CORREO', enviar: jest.fn().mockResolvedValue() };
     const servicio = crearNotificacionesService({ notificacionesRepo: repo, canal });
     await expect(servicio.enviar(15, 'CONFIRMACION', 'maria@ejemplo.com', datos)).resolves.toBe(true);
+  });
+
+  describe('reintentos (RF-07, RF-15): hasta 3 intentos, en segundo plano', () => {
+    const errSmtp = () => Object.assign(new Error('timeout'), { code: 'ETIMEDOUT' });
+
+    function preparar(resultados) {
+      const repo = repoSimulado();
+      const canal = { canal: 'CORREO', enviar: jest.fn() };
+      for (const r of resultados) {
+        if (r === 'ok') canal.enviar.mockResolvedValueOnce();
+        else canal.enviar.mockRejectedValueOnce(errSmtp());
+      }
+      const esperas = [];
+      const esperar = jest.fn((ms) => {
+        esperas.push(ms);
+        return Promise.resolve();
+      });
+      const servicio = crearNotificacionesService({ notificacionesRepo: repo, canal, esperar });
+      return { repo, canal, servicio, esperas };
+    }
+
+    test('éxito al primer intento: ENVIADA, sin reintentos ni esperas', async () => {
+      const { repo, canal, servicio, esperas } = preparar(['ok']);
+      expect(await servicio.enviar(15, 'CONFIRMACION', 'maria@ejemplo.com', datos)).toBe(true);
+      await servicio.esperarReintentos();
+      expect(canal.enviar).toHaveBeenCalledTimes(1);
+      expect(repo.marcarEnviada).toHaveBeenCalledTimes(1);
+      expect(repo.marcarFallida).not.toHaveBeenCalled();
+      expect(esperas).toEqual([]);
+    });
+
+    test('éxito al segundo intento: el 1.º queda PENDIENTE y luego pasa a ENVIADA', async () => {
+      const { repo, canal, servicio, esperas } = preparar(['falla', 'ok']);
+      // La respuesta no espera el reintento: informa el resultado del primer intento.
+      expect(await servicio.enviar(15, 'CONFIRMACION', 'maria@ejemplo.com', datos)).toBe(false);
+      await servicio.esperarReintentos();
+      expect(canal.enviar).toHaveBeenCalledTimes(2);
+      expect(repo.marcarFallida).toHaveBeenCalledTimes(1);
+      expect(repo.marcarFallida).toHaveBeenCalledWith(15, 'ETIMEDOUT', { definitivo: false });
+      expect(repo.marcarEnviada).toHaveBeenCalledTimes(1);
+      expect(repo.marcarEnviada).toHaveBeenCalledWith(15);
+      expect(esperas).toEqual([1000]);
+    });
+
+    test('fallo total: 3 intentos, cada uno anotado, y el último deja FALLIDA', async () => {
+      const { repo, canal, servicio, esperas } = preparar(['falla', 'falla', 'falla']);
+      expect(await servicio.enviar(15, 'REPROGRAMACION', 'maria@ejemplo.com', { ...datos, anterior: { fecha: '2026-11-02', horaInicio: '09:00' } })).toBe(false);
+      await servicio.esperarReintentos();
+      expect(canal.enviar).toHaveBeenCalledTimes(3);
+      expect(repo.marcarFallida.mock.calls).toEqual([
+        [15, 'ETIMEDOUT', { definitivo: false }],
+        [15, 'ETIMEDOUT', { definitivo: false }],
+        [15, 'ETIMEDOUT', { definitivo: true }],
+      ]);
+      expect(repo.marcarEnviada).not.toHaveBeenCalled();
+      expect(esperas).toEqual([1000, 3000]);
+    });
+
+    test('la respuesta no espera los reintentos', async () => {
+      const repo = repoSimulado();
+      const canal = { canal: 'CORREO', enviar: jest.fn().mockRejectedValue(errSmtp()) };
+      let soltar;
+      const esperar = jest.fn(() => new Promise((r) => (soltar = r)));
+      const servicio = crearNotificacionesService({ notificacionesRepo: repo, canal, esperar });
+      expect(await servicio.enviar(15, 'CONFIRMACION', 'maria@ejemplo.com', datos)).toBe(false);
+      // enviar() ya respondió aunque el reintento sigue esperando su turno.
+      expect(canal.enviar).toHaveBeenCalledTimes(1);
+      expect(esperar).toHaveBeenCalledWith(1000);
+      soltar();
+      esperar.mockResolvedValue();
+      await servicio.esperarReintentos();
+      expect(canal.enviar).toHaveBeenCalledTimes(3);
+    });
+
+    test('un error al componer el mensaje no se reintenta y queda FALLIDA', async () => {
+      const { repo, canal, servicio } = preparar([]);
+      expect(await servicio.enviar(15, 'TIPO_INEXISTENTE', 'maria@ejemplo.com', datos)).toBe(false);
+      await servicio.esperarReintentos();
+      expect(canal.enviar).not.toHaveBeenCalled();
+      expect(repo.marcarFallida).toHaveBeenCalledWith(15, 'ERROR_ENVIO', { definitivo: true });
+    });
   });
 
   test('detalleSinDatosPersonales nunca usa el mensaje del error', () => {

@@ -5,6 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="robots" content="noindex">
   <title>Agenda del día — Panel Clínica Rueda</title>
+  <link rel="icon" type="image/png" href="/img/logo.png">
   <link rel="stylesheet" href="/css/app.css">
   <script type="module" src="/js/admin-agenda.js"></script>
 </head>
@@ -13,9 +14,9 @@
   <a href="#contenido" class="sr-only focus:not-sr-only focus:absolute focus:left-4 focus:top-4 focus:z-10 focus:rounded focus:bg-white focus:px-4 focus:py-2">Saltar al contenido</a>
 
   <!-- Barra superior en móvil (Figura 22) -->
-  <header class="flex items-center justify-between gap-3 bg-tinta px-4 py-3 text-white lg:hidden">
+  <header class="superficie-oscura flex items-center justify-between gap-3 bg-tinta px-4 py-3 text-white lg:hidden">
     <div class="flex items-center gap-3">
-      <span class="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-baya" aria-hidden="true"><span class="h-3 w-3 rounded-full bg-sol"></span></span>
+      <span class="shrink-0 rounded-lg bg-white p-1"><img src="/img/logo.png" width="367" height="512" alt="Emblema" class="h-10 w-auto shrink-0"></span>
       <span>
         <span class="block font-titulo text-lg font-bold">Clínica Rueda</span>
         <span class="block text-sm text-white/80">Panel</span>
@@ -26,9 +27,9 @@
   </header>
 
   <!-- Menú lateral (escritorio) / desplegable (móvil) -->
-  <aside id="menu-panel" class="hidden bg-tinta text-white lg:sticky lg:top-0 lg:flex lg:h-screen lg:w-72 lg:shrink-0 lg:flex-col">
+  <aside id="menu-panel" class="superficie-oscura hidden bg-tinta text-white lg:sticky lg:top-0 lg:flex lg:h-screen lg:w-72 lg:shrink-0 lg:flex-col">
     <div class="hidden items-center gap-3 px-6 pt-8 lg:flex">
-      <span class="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-baya" aria-hidden="true"><span class="h-3 w-3 rounded-full bg-sol"></span></span>
+      <span class="shrink-0 rounded-lg bg-white p-1"><img src="/img/logo.png" width="367" height="512" alt="Emblema" class="h-10 w-auto shrink-0"></span>
       <span>
         <span class="block font-titulo text-xl font-bold">Clínica Rueda</span>
         <span class="block text-sm text-white/80">Panel</span>
@@ -36,16 +37,16 @@
     </div>
     <nav class="grid gap-1 px-4 py-4 lg:mt-6" aria-label="Panel">
       <a href="/admin/agenda.html" aria-current="page"
-         class="flex min-h-11 items-center rounded-lg border-l-4 border-sol bg-white/10 px-4 font-bold">Agenda del día</a>
+         class="flex min-h-11 items-center rounded-lg bg-white px-4 font-bold text-tinta">Agenda del día</a>
       <a href="/admin/informes.html" data-solo-rol="RECEPCIONISTA" hidden
-         class="flex min-h-11 items-center rounded-lg border-l-4 border-transparent px-4 font-bold hover:bg-white/10">Subir informe</a>
+         class="flex min-h-11 items-center rounded-lg px-4 font-bold text-white/85 transition-colors hover:bg-white/10 hover:text-white">Subir informe</a>
       <a href="/admin/disponibilidad.html" data-solo-rol="MEDICO" hidden
-         class="flex min-h-11 items-center rounded-lg border-l-4 border-transparent px-4 font-bold hover:bg-white/10">Disponibilidad</a>
+         class="flex min-h-11 items-center rounded-lg px-4 font-bold text-white/85 transition-colors hover:bg-white/10 hover:text-white">Disponibilidad</a>
     </nav>
     <div class="mt-auto border-t border-white/15 px-6 py-5">
       <p class="font-bold" data-usuario-nombre></p>
       <p class="text-sm text-white/80" data-usuario-rol></p>
-      <button type="button" data-cerrar-sesion class="mt-2 min-h-11 font-bold text-sol underline disabled:opacity-60">Cerrar sesión</button>
+      <button type="button" data-cerrar-sesion class="mt-2 min-h-11 font-bold text-acento underline disabled:opacity-60">Cerrar sesión</button>
     </div>
   </aside>
 
@@ -134,9 +135,18 @@
 
       <div id="gestion-opciones" class="grid gap-3 sm:grid-cols-2">
         <button type="button" id="g-no-asistio" class="min-h-11 rounded-lg border border-tinta/20 bg-white px-5 font-bold hover:bg-bruma">Marcar «No asistió»</button>
-        <button type="button" id="g-abrir-reprogramar" class="min-h-11 rounded-lg bg-baya px-5 font-bold text-white hover:bg-baya/90">Reprogramar</button>
+        <button type="button" id="g-abrir-reprogramar" class="min-h-11 rounded-lg bg-primario px-5 font-bold text-white hover:bg-tinta-2">Reprogramar</button>
         <button type="button" id="g-abrir-cancelar" class="min-h-11 rounded-lg border border-error bg-white px-5 font-bold text-error hover:bg-error/5">Cancelar cita</button>
         <p id="g-sin-opciones" class="text-tinta-2 sm:col-span-2" hidden>No hay acciones disponibles para esta cita.</p>
+      </div>
+
+      <div id="gestion-no-asistio" class="rounded-lg border border-tinta/20 bg-bruma p-4" hidden>
+        <p class="font-bold">¿Marcar esta cita como «No asistió»?</p>
+        <p class="mt-1 text-sm">Úsalo solo si la paciente no se presentó. Después la cita no podrá cancelarse ni reprogramarse.</p>
+        <div class="mt-4 flex flex-wrap gap-3">
+          <button type="button" id="g-si-no-asistio" class="min-h-11 rounded-lg bg-primario px-5 font-bold text-white hover:bg-tinta-2 disabled:opacity-60">Sí, marcar «No asistió»</button>
+          <button type="button" data-volver-opciones class="min-h-11 rounded-lg border border-tinta/20 bg-white px-5 font-bold">No, volver</button>
+        </div>
       </div>
 
       <div id="gestion-cancelar" class="rounded-lg border border-error/40 bg-error/5 p-4" hidden>
@@ -167,5 +177,11 @@
       <button type="button" data-cerrar-dialogo class="min-h-11 rounded-lg border border-tinta/20 bg-white px-5 font-bold hover:bg-bruma">Cerrar</button>
     </div>
   </dialog>
+
+  <!-- Menú «⋯» de acciones secundarias de una cita (admin-agenda.js lo posiciona junto al botón) -->
+  <div id="menu-acciones" class="fixed z-30 w-64 rounded-xl border border-tinta/10 bg-white p-2 shadow-[0_2px_4px_rgb(0_0_0/0.05),0_16px_32px_-12px_rgb(0_0_0/0.3)]" hidden>
+    <p id="menu-acciones-titulo" class="px-3 py-2 text-sm text-tinta-2"></p>
+    <div id="menu-acciones-lista" class="grid gap-1" role="group" aria-labelledby="menu-acciones-titulo"></div>
+  </div>
 </body>
 </html>

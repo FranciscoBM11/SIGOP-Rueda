@@ -58,7 +58,7 @@ function filaDia(d) {
         'span',
         {
           'aria-hidden': 'true',
-          class: 'relative h-8 w-14 rounded-full bg-tinta/20 transition-colors after:absolute after:left-1 after:top-1 after:h-6 after:w-6 after:rounded-full after:bg-white after:shadow after:transition-transform peer-checked:bg-salvia peer-checked:after:translate-x-6 peer-focus-visible:outline peer-focus-visible:outline-3 peer-focus-visible:outline-sol',
+          class: 'relative h-8 w-14 rounded-full bg-tinta/20 transition-colors after:absolute after:left-1 after:top-1 after:h-6 after:w-6 after:rounded-full after:bg-white after:shadow after:transition-transform peer-checked:bg-salvia peer-checked:after:translate-x-6 peer-focus-visible:outline peer-focus-visible:outline-3 peer-focus-visible:outline-primario',
         },
       ),
       el('span', { id: `${id('atiende')}-texto`, class: 'sr-only' }, 'Atiende este día'),
@@ -105,7 +105,7 @@ function pintarFueraDeHorario(citas) {
         {},
         el(
           'a',
-          { href: `/admin/agenda.html?fecha=${c.fecha}`, class: 'inline-flex min-h-11 items-center font-bold text-baya underline' },
+          { href: `/admin/agenda.html?fecha=${c.fecha}`, class: 'inline-flex min-h-11 items-center font-bold text-primario underline' },
           `${c.codigo}: ${c.servicio}, ${formatearFecha(c.fecha, 'dia').toLowerCase()} a las ${c.horaInicio}`,
         ),
       ),

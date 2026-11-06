@@ -2,7 +2,7 @@
 
 // CitasService.agendar() (CU-03) con colaboradores simulados.
 // Reglas: RN-01, RN-02, RN-05, RN-08/RN-14 (vía triaje) y flujos A2, E3, E4.
-const { crearCitasService, esTurnoDuplicado } = require('./citas.service');
+const { crearCitasService, esTurnoDuplicado, esCodigoDuplicado } = require('./citas.service');
 const { generarCodigoCita, codigoAleatorio } = require('./generar-codigo-cita');
 const { crearPacientesService } = require('../pacientes/pacientes.service');
 const { ErrorNegocio } = require('../../common/errores');
@@ -188,6 +188,52 @@ describe('RN-02 – generarCodigoCita', () => {
 
   test('tras 10 colisiones seguidas lanza CODIGO_NO_GENERADO', async () => {
     await expect(generarCodigoCita(async () => true)).rejects.toMatchObject({ codigo: 'CODIGO_NO_GENERADO', http: 503 });
+  });
+});
+
+describe('RN-02 – choque del código al guardar (uq_citas_codigo)', () => {
+  const choqueCodigo = () =>
+    Object.assign(new Error("Violation of UNIQUE KEY constraint 'uq_citas_codigo'. Cannot insert duplicate key in object 'dbo.citas'."), {
+      name: 'RequestError',
+      number: 2627,
+    });
+
+  test('si el INSERT choca por el código, repite la transacción con un código nuevo', async () => {
+    const insertar = jest.fn().mockRejectedValueOnce(choqueCodigo()).mockResolvedValueOnce(502);
+    const generar = jest.fn().mockResolvedValueOnce('CR-11111').mockResolvedValueOnce('CR-22222');
+    const { d, citas } = armar({ citasRepo: { codigoExiste: jest.fn().mockResolvedValue(false), insertar }, generarCodigoCita: generar });
+
+    const comprobante = await citas.agendar(entrada());
+
+    expect(comprobante.codigo).toBe('CR-22222');
+    expect(d.transaccion).toHaveBeenCalledTimes(2); // la primera se deshizo (rollback)
+    expect(insertar.mock.calls.map(([, fila]) => fila.codigo)).toEqual(['CR-11111', 'CR-22222']);
+    expect(d.notificacionesService.registrarPendiente).toHaveBeenCalledTimes(1);
+    expect(d.notificacionesService.enviar).toHaveBeenCalledTimes(1);
+    expect(d.notificacionesService.enviar).toHaveBeenCalledWith(15, 'CONFIRMACION', 'maria@ejemplo.com', expect.objectContaining({ codigo: 'CR-22222' }));
+  });
+
+  test('tras 10 choques seguidos responde 503 CODIGO_NO_GENERADO, nunca 500, y no envía correo', async () => {
+    const insertar = jest.fn().mockRejectedValue(choqueCodigo());
+    const { d, citas } = armar({ citasRepo: { codigoExiste: jest.fn().mockResolvedValue(false), insertar } });
+
+    await expect(citas.agendar(entrada())).rejects.toMatchObject({ codigo: 'CODIGO_NO_GENERADO', http: 503 });
+    expect(d.transaccion).toHaveBeenCalledTimes(10);
+    expect(d.notificacionesService.enviar).not.toHaveBeenCalled();
+  });
+
+  test('el choque de turno sigue respondiendo 409 sin reintentar', async () => {
+    const errTurno = Object.assign(new Error("unique index 'uq_cita_turno_activa'"), { number: 2601 });
+    const { d, citas } = armar({ citasRepo: { codigoExiste: jest.fn().mockResolvedValue(false), insertar: jest.fn().mockRejectedValue(errTurno) } });
+    await expect(citas.agendar(entrada())).rejects.toMatchObject({ codigo: 'TURNO_OCUPADO', http: 409 });
+    expect(d.transaccion).toHaveBeenCalledTimes(1);
+  });
+
+  test('esCodigoDuplicado solo reconoce la restricción del código', () => {
+    expect(esCodigoDuplicado(choqueCodigo())).toBe(true);
+    expect(esCodigoDuplicado({ originalError: { info: { number: 2627 } }, message: 'uq_citas_codigo' })).toBe(true);
+    expect(esCodigoDuplicado({ number: 2601, message: "unique index 'uq_cita_turno_activa'" })).toBe(false);
+    expect(esCodigoDuplicado(new Error('uq_citas_codigo'))).toBe(false);
   });
 });
 

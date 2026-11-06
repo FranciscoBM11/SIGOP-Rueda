@@ -12,7 +12,8 @@
 // (CU-13). Cada cambio queda en cambios_estado_cita con el usuario (RF-17).
 const { ErrorNegocio } = require('../../common/errores');
 const { ahoraManagua } = require('../../common/fechas');
-const { generarCodigoCita: generarPorDefecto } = require('./generar-codigo-cita');
+const { generarCodigoCita: generarPorDefecto, MAX_INTENTOS: MAX_INTENTOS_CODIGO } = require('./generar-codigo-cita');
+const registro = require('../../common/registro');
 const { presentarComprobante, presentarCita, presentarItemAgenda } = require('./cita.presentador');
 const { VERSION_CONSENTIMIENTO } = require('./citas.schemas');
 const {
@@ -79,6 +80,15 @@ async function bloquearModificable(citasRepo, tx, clave, actor, reloj) {
 function esTurnoDuplicado(err) {
   const numero = err?.number ?? err?.originalError?.info?.number;
   return (numero === 2601 || numero === 2627) && /uq_cita_turno_activa/i.test(err?.message ?? '');
+}
+
+/**
+ * ¿El error es la violación de la restricción única del código de cita (RN-02)?
+ * Puede pasar si otra cita guarda el mismo código entre la comprobación y el INSERT.
+ */
+function esCodigoDuplicado(err) {
+  const numero = err?.number ?? err?.originalError?.info?.number;
+  return (numero === 2601 || numero === 2627) && /uq_citas_codigo/i.test(err?.message ?? '');
 }
 
 function crearCitasService({
@@ -213,29 +223,38 @@ function crearCitasService({
       const servicio = await serviciosService.obtenerActivo(datos.servicioId);
       const respuestas = await triajeService.validar(datos.servicioId, datos.respuestas);
 
+      // RN-02: si el código choca al guardar (otra cita lo tomó a la vez), se
+      // deshace la transacción y se repite con un código nuevo.
       let resultado;
-      try {
-        resultado = await transaccion(async (tx) => {
-          const turno = await turnosService.reservar(tx, datos.turnoId);
-          const pacienteId = await pacientesService.registrarOActualizar(tx, datos.paciente);
-          const codigo = await generarCodigoCita((c) => citasRepo.codigoExiste(tx, c));
-          const citaId = await citasRepo.insertar(tx, {
-            codigo,
-            pacienteId,
-            turnoId: datos.turnoId,
-            servicioId: datos.servicioId,
-            consentimientoVersion: VERSION_CONSENTIMIENTO,
+      for (let intento = 1; resultado === undefined; intento += 1) {
+        try {
+          resultado = await transaccion(async (tx) => {
+            const turno = await turnosService.reservar(tx, datos.turnoId);
+            const pacienteId = await pacientesService.registrarOActualizar(tx, datos.paciente);
+            const codigo = await generarCodigoCita((c) => citasRepo.codigoExiste(tx, c));
+            const citaId = await citasRepo.insertar(tx, {
+              codigo,
+              pacienteId,
+              turnoId: datos.turnoId,
+              servicioId: datos.servicioId,
+              consentimientoVersion: VERSION_CONSENTIMIENTO,
+            });
+            await cambiosEstadoRepo.registrar(tx, { citaId, estadoAnterior: null, estadoNuevo: ESTADO_INICIAL, origen: 'PACIENTE' });
+            await triajeService.guardarFicha(tx, citaId, respuestas);
+            const notificacionId = await notificacionesService.registrarPendiente(tx, citaId, 'CONFIRMACION');
+            return { codigo, turno, notificacionId };
           });
-          await cambiosEstadoRepo.registrar(tx, { citaId, estadoAnterior: null, estadoNuevo: ESTADO_INICIAL, origen: 'PACIENTE' });
-          await triajeService.guardarFicha(tx, citaId, respuestas);
-          const notificacionId = await notificacionesService.registrarPendiente(tx, citaId, 'CONFIRMACION');
-          return { codigo, turno, notificacionId };
-        });
-      } catch (err) {
-        if (esTurnoDuplicado(err)) {
-          throw new ErrorNegocio('TURNO_OCUPADO', 'El turno ya fue reservado. Elige otro.', 409);
+        } catch (err) {
+          if (esTurnoDuplicado(err)) {
+            throw new ErrorNegocio('TURNO_OCUPADO', 'El turno ya fue reservado. Elige otro.', 409);
+          }
+          if (esCodigoDuplicado(err)) {
+            registro.warn('codigo_cita_duplicado', { intento });
+            if (intento < MAX_INTENTOS_CODIGO) continue;
+            throw new ErrorNegocio('CODIGO_NO_GENERADO', 'No se pudo generar el código de la cita. Intenta de nuevo.', 503);
+          }
+          throw err;
         }
-        throw err;
       }
 
       const { codigo, turno, notificacionId } = resultado;
@@ -315,4 +334,4 @@ function crearCitasService({
   };
 }
 
-module.exports = { crearCitasService, esTurnoDuplicado, ESTADO_INICIAL };
+module.exports = { crearCitasService, esTurnoDuplicado, esCodigoDuplicado, ESTADO_INICIAL };

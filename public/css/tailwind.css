@@ -5,28 +5,342 @@
 @source "../**/*.html";
 @source "../js/**/*.js";
 
-/* Tokens del sistema de diseño (Fase 3, Tabla 61). */
+/*
+ * Tokens del sistema de diseño (Fase 3, sección 8.1, Tabla 61).
+ * Identidad de la clínica: grises, negro y blanco. ÚNICO lugar donde se
+ * definen los colores; para ajustar la paleta basta con cambiar estos valores
+ * y ejecutar `npm run css`. Contrastes medidos sobre blanco (#fff) y Bruma.
+ */
 @theme {
-  --color-baya: #8a2d5c;
-  --color-tinta: #2b2233;
-  --color-tinta-2: #5e5468;
-  --color-bruma: #f5f1f6;
-  --color-salvia: #2e6b5e;
-  --color-sol: #f2c14e;
-  --color-error: #b3261e;
+  --color-primario: #141414;  /* Acciones principales y marca. 18.6:1 sobre blanco. */
+  --color-tinta: #1f1f1f;     /* Texto principal, menú lateral. 15.9:1 sobre Bruma. */
+  --color-tinta-2: #525252;   /* Texto de apoyo. 7.8:1 sobre blanco, 7.1:1 sobre Bruma. */
+  --color-bruma: #f3f3f2;     /* Fondo de las páginas. */
+  --color-acento: #a3a3a3;    /* «Dónde estás»: marcas y avisos (siempre con texto Tinta encima). */
+  --color-salvia: #22664c;    /* Confirmaciones (verde sobrio). 6.6:1 sobre blanco. */
+  --color-error: #b3261e;     /* Errores y acciones destructivas. 6.5:1 sobre blanco. */
+
+  /* Colores de estado de la cita (agenda del personal); siempre acompañados de texto. */
+  --color-info: #2c5a88;      /* Confirmada. 7.2:1 sobre blanco. */
+  --color-aviso: #8a5300;     /* En espera (texto ámbar oscuro). 6.3:1 sobre blanco, 5.5:1 sobre su fondo. */
+  --color-aviso-fondo: #fbedd0;
+
+  /* WhatsApp (único color de marca externo). Ícono blanco: 4.1:1. */
+  --color-whatsapp: #128c7e;
+  --color-whatsapp-oscuro: #0e6f64;
 
   /* Las fuentes se alojarán en public/ más adelante; mientras, se usan las del sistema. */
   --font-sans: "Atkinson Hyperlegible", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
   --font-titulo: "Bricolage Grotesque", system-ui, -apple-system, "Segoe UI", sans-serif;
+
+  /* Movimiento: salida exponencial, corta. */
+  --ease-salida: cubic-bezier(0.16, 1, 0.3, 1);
+  --animate-entrar: entrar 600ms var(--ease-salida) both;
+
+  @keyframes entrar {
+    from { opacity: 0; transform: translateY(12px); }
+  }
 }
 
 @layer base {
+  a, button {
+    transition-property: color, background-color, border-color, box-shadow, opacity;
+    transition-duration: 150ms;
+    transition-timing-function: ease-out;
+  }
   html {
     @apply bg-bruma text-tinta font-sans antialiased;
+    scrollbar-color: var(--color-tinta-2) var(--color-bruma);
   }
-  /* Foco del teclado visible con contorno Sol. */
+  ::selection {
+    background: var(--color-primario);
+    color: #fff;
+  }
+  a {
+    text-underline-offset: 3px;
+  }
+  /* Foco del teclado: anillo blanco + contorno negro, visible sobre fondos claros y oscuros. */
   :focus-visible {
-    outline: 3px solid var(--color-sol);
+    outline: 3px solid var(--color-primario);
     outline-offset: 2px;
+    box-shadow: 0 0 0 2px #fff;
+  }
+  /* Sobre superficies oscuras (menú lateral, bloque del personal) el contorno es blanco. */
+  .superficie-oscura :focus-visible {
+    outline-color: #fff;
+    box-shadow: 0 0 0 2px var(--color-primario);
+  }
+  h1, h2, h3 {
+    text-wrap: balance;
+  }
+}
+
+/* Aparición del panel de un servicio (portada). */
+@keyframes panel-aparece {
+  from { opacity: 0; transform: translateY(-6px); }
+}
+
+@layer components {
+  /*
+   * Menú lateral compartido del portal público (menu-estado.js + menu-publico.js).
+   * Teléfono: cajón escondido que entra desde la izquierda; el tirador asoma en el borde.
+   * Escritorio (lg): fijo y desplegado; el tirador lo encoge a una barra de íconos
+   * (<html data-menu="encogido">).
+   */
+  .menu-lateral {
+    position: fixed;
+    inset-block: 0;
+    left: 0;
+    z-index: 40;
+    width: min(18rem, 85vw);
+    transform: translateX(-100%);
+    visibility: hidden;
+    transition: transform 280ms var(--ease-salida), visibility 0s linear 280ms;
+  }
+  .menu-lateral[data-abierto] {
+    transform: none;
+    visibility: visible;
+    transition: transform 280ms var(--ease-salida), visibility 0s;
+    box-shadow: 0 0 0 1px rgb(255 255 255 / 0.06), 12px 0 40px -12px rgb(0 0 0 / 0.5);
+  }
+  .velo-menu {
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 200ms ease-out;
+  }
+  .velo-menu[data-abierto] {
+    opacity: 1;
+    pointer-events: auto;
+  }
+
+  /* Tirador: pestaña pegada al borde derecho del menú (asoma aunque el menú esté escondido). */
+  .tirador-menu {
+    position: absolute;
+    top: 50%;
+    left: 100%;
+    translate: 0 -50%;
+    visibility: visible;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 1.5rem;
+    height: 4rem;
+    border-radius: 0 0.75rem 0.75rem 0;
+    background: var(--color-tinta);
+    color: #fff;
+    box-shadow: inset 0 0 0 1px rgb(255 255 255 / 0.18), 4px 2px 12px -4px rgb(0 0 0 / 0.35);
+  }
+  .tirador-menu:hover {
+    background: var(--color-tinta-2);
+  }
+  [data-menu-listo] .tirador-menu svg {
+    transition: rotate 280ms var(--ease-salida);
+  }
+  .tirador-menu[aria-expanded="true"] svg {
+    rotate: 180deg;
+  }
+
+  @media (width >= 64rem) {
+    .menu-lateral {
+      position: sticky;
+      top: 0;
+      height: 100vh;
+      height: 100dvh;
+      width: 18rem;
+      flex-shrink: 0;
+      transform: none;
+      visibility: visible;
+      transition: none;
+    }
+    [data-menu-listo] .menu-lateral {
+      transition: width 260ms var(--ease-salida);
+    }
+    .velo-menu {
+      display: none;
+    }
+    .tirador-menu {
+      top: 6.5rem;
+      translate: 0;
+      height: 3rem;
+    }
+
+    /* Encogido: solo íconos; los textos siguen disponibles para lectores de pantalla. */
+    [data-menu="encogido"] .menu-lateral {
+      width: 4.5rem;
+    }
+    [data-menu="encogido"] .menu-lateral .menu-texto {
+      position: absolute;
+      width: 1px;
+      height: 1px;
+      overflow: hidden;
+      clip-path: inset(50%);
+      white-space: nowrap;
+    }
+    [data-menu="encogido"] .menu-lateral .menu-cabecera {
+      padding-inline: 0.75rem;
+    }
+    [data-menu="encogido"] .menu-lateral .enlace-menu {
+      justify-content: center;
+      padding-inline: 0;
+    }
+  }
+
+  /* Menú encogido (escritorio): el nombre de cada opción aparece en un globo al pasar el cursor o enfocar. */
+  @media (width >= 64rem) {
+    [data-menu="encogido"] .menu-lateral .menu-interior {
+      overflow: visible;
+    }
+    [data-menu="encogido"] .menu-lateral .enlace-menu {
+      position: relative;
+    }
+    [data-menu="encogido"] .menu-lateral .enlace-menu::after {
+      content: attr(data-etiqueta);
+      position: absolute;
+      left: calc(100% + 0.75rem);
+      top: 50%;
+      translate: -4px -50%;
+      z-index: 50;
+      white-space: nowrap;
+      padding: 0.375rem 0.75rem;
+      border-radius: 0.5rem;
+      background: var(--color-primario);
+      color: #fff;
+      font-size: 0.875rem;
+      font-weight: 700;
+      box-shadow: 0 0 0 1px rgb(255 255 255 / 0.15), 0 8px 20px -8px rgb(0 0 0 / 0.5);
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 150ms ease-out, translate 150ms var(--ease-salida);
+    }
+    [data-menu="encogido"] .menu-lateral .enlace-menu:hover::after,
+    [data-menu="encogido"] .menu-lateral .enlace-menu:focus-visible::after {
+      opacity: 1;
+      translate: 0 -50%;
+    }
+  }
+
+  /* Servicios de la portada: en el teléfono el panel se despliega debajo; desde md flota sobre la cuadrícula. */
+  .servicio-chevron {
+    transition: rotate 200ms var(--ease-salida);
+  }
+  .servicio-boton[aria-expanded="true"] .servicio-chevron {
+    rotate: 180deg;
+  }
+  .servicio-panel {
+    padding-top: 0.5rem;
+  }
+  .servicio-panel:not([hidden]) {
+    animation: panel-aparece 180ms var(--ease-salida);
+  }
+  @media (width >= 48rem) {
+    .servicio-panel {
+      position: absolute;
+      inset-inline: 0;
+      top: 100%;
+      z-index: 20;
+    }
+  }
+
+  /* WhatsApp flotante y barra «Agendar cita» (teléfono). */
+  .boton-whatsapp {
+    position: fixed;
+    right: 1rem;
+    bottom: calc(1rem + env(safe-area-inset-bottom));
+    z-index: 20;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 3.5rem;
+    height: 3.5rem;
+    border-radius: 9999px;
+    background: var(--color-whatsapp);
+    color: #fff;
+    box-shadow: 0 10px 24px -8px rgb(0 0 0 / 0.45);
+    transition: translate 200ms var(--ease-salida), background-color 150ms ease-out;
+  }
+  .boton-whatsapp:hover {
+    translate: 0 -2px;
+    background: var(--color-whatsapp-oscuro);
+  }
+  .barra-agendar {
+    position: fixed;
+    inset-inline: 0;
+    bottom: 0;
+    z-index: 20;
+    padding: 0.75rem 1rem calc(0.75rem + env(safe-area-inset-bottom));
+    border-top: 1px solid rgb(31 31 31 / 0.1);
+    background: rgb(255 255 255 / 0.96);
+  }
+  @media (width < 64rem) {
+    /* Que la barra no tape el final de la página ni el botón de WhatsApp. */
+    .con-barra {
+      padding-bottom: calc(5rem + env(safe-area-inset-bottom));
+    }
+    .con-barra .boton-whatsapp {
+      bottom: calc(5.75rem + env(safe-area-inset-bottom));
+    }
+  }
+  @media (width >= 64rem) {
+    .boton-whatsapp {
+      right: 1.5rem;
+      bottom: 1.5rem;
+    }
+  }
+
+  /* Enlaces del menú: el actual se invierte (blanco sobre negro → negro sobre blanco). */
+  .enlace-menu {
+    @apply flex min-h-11 items-center gap-3 rounded-lg px-3 font-bold text-white/85 hover:bg-white/10 hover:text-white;
+  }
+  .enlace-menu[aria-current="page"] {
+    @apply bg-white text-tinta hover:bg-white hover:text-tinta;
+  }
+  .enlace-menu svg {
+    @apply h-5 w-5 shrink-0;
+  }
+
+  /*
+   * Imagen del hero de la portada. ÚNICO lugar con el nombre del archivo.
+   * Hoy: afiche cuadrado 960×960 con texto propio → se muestra completo (contain).
+   * Para cambiar a una foto sin texto a pantalla completa con degradado oscuro:
+   * cambiar la URL y poner la clase `hero--foto` en la <section> del hero.
+   */
+  :root {
+    --hero-imagen: url("/img/clinica-portada.jpg");
+  }
+  .hero-imagen {
+    aspect-ratio: 1 / 1;
+    background-image: var(--hero-imagen);
+    background-size: contain;
+    background-position: center;
+    background-repeat: no-repeat;
+  }
+  .hero--foto {
+    background-image:
+      linear-gradient(90deg, rgb(20 20 20 / 0.92) 0%, rgb(20 20 20 / 0.7) 45%, rgb(20 20 20 / 0.15) 100%),
+      var(--hero-imagen);
+    background-size: cover;
+    background-position: center;
+  }
+  .hero--foto .hero-imagen {
+    display: none;
+  }
+
+  /* Fila de acción con flecha que avanza al pasar el cursor. */
+  .fila-accion svg {
+    transition: transform 200ms var(--ease-salida);
+  }
+  .fila-accion:hover svg {
+    transform: translateX(3px);
+  }
+}
+
+/* Movimiento reducido: sin animaciones ni desplazamientos. */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation: none !important;
+    transition: none !important;
+    scroll-behavior: auto !important;
   }
 }

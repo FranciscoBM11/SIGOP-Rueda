@@ -14,8 +14,8 @@ const ERRORES_DE_TOKEN = ['TOKEN_INVALIDO', 'TOKEN_REQUERIDO', 'TOKEN_NO_CORRESP
 const $ = (id) => document.getElementById(id);
 
 const ESTADOS = {
-  CONFIRMADA: { texto: 'Confirmada', clase: 'bg-baya/10 text-baya' },
-  EN_ESPERA: { texto: 'En espera', clase: 'bg-sol/30 text-tinta' },
+  CONFIRMADA: { texto: 'Confirmada', clase: 'bg-primario/10 text-primario' },
+  EN_ESPERA: { texto: 'En espera', clase: 'bg-acento/30 text-tinta' },
   ATENDIDA: { texto: 'Atendida', clase: 'bg-salvia/15 text-salvia' },
   NO_ASISTIO: { texto: 'No asistió', clase: 'bg-tinta/10 text-tinta-2' },
   CANCELADA: { texto: 'Cancelada', clase: 'bg-error/10 text-error' },

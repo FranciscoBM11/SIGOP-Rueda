@@ -168,7 +168,9 @@ Agenda una cita. En una sola transacción: bloquea y verifica el turno, registra
   | 409 | `TURNO_NO_DISPONIBLE` | El turno ya empezó o pasó, está deshabilitado o está a más de 90 días. |
   | 409 | `TURNO_OCUPADO` | Otra paciente reservó el turno (RN-01). La interfaz vuelve al paso 2 conservando los datos. |
   | 429 | `DEMASIADAS_PETICIONES` | Más de 20 peticiones por minuto desde la misma IP. |
-  | 503 | `CODIGO_NO_GENERADO` | No se encontró un código libre tras 10 intentos (muy improbable). |
+  | 503 | `CODIGO_NO_GENERADO` | No se encontró un código libre tras 10 intentos, o el código chocó con `uq_citas_codigo` al guardar 10 veces seguidas (cada choque repite la transacción con otro código). Muy improbable. |
+
+**`correoEnviado`:** `true` si el proveedor aceptó el correo al **primer** intento. Si es `false`, la cita igual quedó guardada y el servidor reintenta en segundo plano (hasta 3 intentos en total, con esperas de 1 s y 3 s); la respuesta no espera esos reintentos. Lo mismo vale para las reprogramaciones (`PATCH /citas/:codigo` y `PATCH /admin/citas/:codigo`).
 
 **Correo en desarrollo:** si `SMTP_HOST` está vacío (solo fuera de producción) se usa un canal simulado que no envía nada; la notificación queda `ENVIADA` y el registro muestra el evento `correo_simulado`.
 

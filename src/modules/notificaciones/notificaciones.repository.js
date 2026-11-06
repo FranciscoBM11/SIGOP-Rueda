@@ -32,15 +32,21 @@ function crearNotificacionesRepository({ obtenerPool }) {
         );
     },
 
-    async marcarFallida(id, detalle) {
+    /**
+     * Registra un intento fallido (suma 1 a intentos).
+     * definitivo = false: quedan reintentos, sigue en PENDIENTE con el último error.
+     * definitivo = true: se agotaron los intentos, pasa a FALLIDA.
+     */
+    async marcarFallida(id, detalle, { definitivo = true } = {}) {
       const pool = await obtenerPool();
       await pool
         .request()
         .input('id', sql.Int, id)
         .input('detalle', sql.NVarChar(300), detalle)
+        .input('estado', sql.VarChar(10), definitivo ? 'FALLIDA' : 'PENDIENTE')
         .query(
           `UPDATE dbo.notificaciones
-              SET estado_envio = 'FALLIDA', intentos = intentos + 1,
+              SET estado_envio = @estado, intentos = intentos + 1,
                   fecha_envio = SYSUTCDATETIME(), detalle_error = @detalle
             WHERE id = @id`,
         );

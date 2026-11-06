@@ -3,6 +3,7 @@
 import { api, el, formatearFecha, hoyManagua, mostrarAviso, sumarDias } from './api.js';
 import { validarCampo } from './validacion.js';
 import { pintarTurnos } from './selector-turnos.js';
+import { servicioDeLaUrl } from './parametro-servicio.js';
 
 const VENTANA_DIAS = 14;
 const MAX_DIAS_ADELANTE = 90;
@@ -48,9 +49,9 @@ function irAPaso(paso, { mensaje, enfocar = true } = {}) {
   for (let i = 1; i <= 4; i += 1) $(`paso-${i}`).hidden = i !== paso;
   for (const li of document.querySelectorAll('#progreso .paso')) {
     const n = Number(li.dataset.paso);
-    li.classList.remove('border-baya', 'border-salvia', 'border-tinta/20', 'font-bold', 'text-tinta', 'text-tinta-2');
+    li.classList.remove('border-primario', 'border-salvia', 'border-tinta/20', 'font-bold', 'text-tinta', 'text-tinta-2');
     if (n < paso) li.classList.add('border-salvia', 'text-tinta');
-    else if (n === paso) li.classList.add('border-baya', 'font-bold', 'text-tinta');
+    else if (n === paso) li.classList.add('border-primario', 'font-bold', 'text-tinta');
     else li.classList.add('border-tinta/20', 'text-tinta-2');
     if (n === paso) li.setAttribute('aria-current', 'step');
     else li.removeAttribute('aria-current');
@@ -84,12 +85,12 @@ async function cargarServicios() {
     ...estado.servicios.map((s) =>
       el(
         'label',
-        { class: 'flex min-h-11 cursor-pointer gap-3 rounded-lg border-2 border-transparent bg-white p-4 shadow-sm has-[:checked]:border-baya' },
+        { class: 'flex min-h-11 cursor-pointer gap-3 rounded-lg border-2 border-transparent bg-white p-4 shadow-sm has-[:checked]:border-primario' },
         el('input', {
           type: 'radio',
           name: 'servicio',
           value: String(s.id),
-          class: 'mt-1 h-5 w-5 shrink-0 accent-baya',
+          class: 'mt-1 h-5 w-5 shrink-0 accent-primario',
           checked: estado.servicio?.id === s.id,
           'aria-describedby': `servicio-${s.id}-ind`,
         }),
@@ -241,8 +242,8 @@ function controlPregunta(p) {
         ['SI', 'NO'].map((v) =>
           el(
             'label',
-            { class: 'flex min-h-11 cursor-pointer items-center gap-2 rounded-lg border border-tinta/30 bg-white px-4 has-[:checked]:border-baya has-[:checked]:font-bold' },
-            el('input', { type: 'radio', name: id, value: v, autocomplete: 'off', class: 'h-5 w-5 accent-baya' }),
+            { class: 'flex min-h-11 cursor-pointer items-center gap-2 rounded-lg border border-tinta/30 bg-white px-4 has-[:checked]:border-primario has-[:checked]:font-bold' },
+            el('input', { type: 'radio', name: id, value: v, autocomplete: 'off', class: 'h-5 w-5 accent-primario' }),
             v === 'SI' ? 'Sí' : 'No',
           ),
         ),
@@ -417,4 +418,11 @@ $('imprimir').addEventListener('click', () => window.print());
 
 // ---------------------------------------------------------------------------
 irAPaso(1, { enfocar: false });
-cargarServicios();
+// Desde la portada («Agendar este servicio»): marca el servicio si el parámetro es válido.
+cargarServicios().then(() => {
+  const preseleccionado = servicioDeLaUrl(location.search, estado.servicios);
+  const radio = preseleccionado && document.querySelector(`input[name="servicio"][value="${preseleccionado.id}"]`);
+  if (!radio) return;
+  radio.checked = true;
+  $('continuar-1').focus();
+});

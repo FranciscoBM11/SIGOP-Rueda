@@ -14,16 +14,30 @@ try {
 
 const { crearApp } = require('./app');
 const { cerrarPool } = require('./config/base-datos');
+const { iniciarServidor } = require('./iniciar-servidor');
 
-const servidor = crearApp().listen(config.puerto, () => {
-  registro.info('servidor_iniciado', { puerto: config.puerto, entorno: config.entorno });
-});
+let servidor;
+iniciarServidor(crearApp(), config.puerto)
+  .then((s) => {
+    servidor = s;
+    s.on('error', (err) => registro.error('servidor_error', { error: registro.resumirError(err) }));
+    registro.info('servidor_iniciado', { puerto: config.puerto, entorno: config.entorno });
+  })
+  .catch((err) => {
+    const mensaje =
+      err.code === 'EADDRINUSE'
+        ? `El puerto ${config.puerto} ya está en uso: cierra el otro servidor (p. ej. otro «npm run dev») o cambia PUERTO.`
+        : 'No se pudo iniciar el servidor HTTP.';
+    registro.error('servidor_no_iniciado', { puerto: config.puerto, codigo: err.code, mensaje });
+    process.exit(1);
+  });
 
 let cerrando = false;
 async function apagar(senal) {
   if (cerrando) return;
   cerrando = true;
   registro.info('servidor_apagando', { senal });
+  if (!servidor) process.exit(0);
   servidor.close(async () => {
     await cerrarPool();
     process.exit(0);

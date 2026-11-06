@@ -10,11 +10,11 @@ import { pintarTurnos } from './selector-turnos.js';
 const $ = (id) => document.getElementById(id);
 
 const ESTADOS = {
-  CONFIRMADA: { texto: 'Confirmada', plural: 'Confirmadas', clase: 'border-baya/20 bg-baya/10 text-baya' },
-  EN_ESPERA: { texto: 'En espera', plural: 'En espera', clase: 'border-sol bg-sol/25 text-tinta' },
-  ATENDIDA: { texto: 'Atendida', plural: 'Atendidas', clase: 'border-salvia/20 bg-salvia/15 text-salvia' },
-  NO_ASISTIO: { texto: 'No asistió', plural: 'No asistió', clase: 'border-tinta/10 bg-tinta/10 text-tinta-2' },
-  CANCELADA: { texto: 'Cancelada', plural: 'Canceladas', clase: 'border-dashed border-tinta/40 bg-white text-tinta-2' },
+  CONFIRMADA: { texto: 'Confirmada', plural: 'Confirmadas', clase: 'border-info/30 bg-info/10 text-info' },
+  EN_ESPERA: { texto: 'En espera', plural: 'En espera', clase: 'border-aviso/30 bg-aviso-fondo text-aviso' },
+  ATENDIDA: { texto: 'Atendida', plural: 'Atendidas', clase: 'border-salvia/30 bg-salvia/10 text-salvia' },
+  NO_ASISTIO: { texto: 'No asistió', plural: 'No asistió', clase: 'border-tinta/15 bg-tinta/10 text-tinta-2' },
+  CANCELADA: { texto: 'Cancelada', plural: 'Canceladas', clase: 'border-dashed border-error/40 bg-error/5 text-error' },
 };
 const ORDEN_FILTROS = ['TODAS', 'CONFIRMADA', 'EN_ESPERA', 'ATENDIDA', 'NO_ASISTIO', 'CANCELADA'];
 const EXITO_POR_ESTADO = {
@@ -30,6 +30,8 @@ const MAX_DIAS_ADELANTE = 90;
 const BOTON = {
   principal: 'min-h-11 rounded-lg bg-salvia px-4 font-bold text-white hover:bg-salvia/90 disabled:opacity-60',
   secundario: 'min-h-11 rounded-lg border border-tinta/20 bg-white px-4 font-bold hover:bg-bruma disabled:opacity-60',
+  menu: 'flex min-h-11 min-w-11 items-center justify-center rounded-lg border border-tinta/20 bg-white px-3 hover:bg-bruma aria-expanded:bg-bruma',
+  opcion: 'flex min-h-11 w-full items-center rounded-lg px-3 text-left font-bold hover:bg-bruma',
 };
 
 const estado = {
@@ -165,34 +167,129 @@ function pintarFiltros() {
   );
 }
 
-/** Botones de la cita según el rol y lo que el servidor permite (RN-11). */
+/** Acciones secundarias que el servidor permite (RN-11); van en el menú «⋯». */
+function accionesSecundarias(c) {
+  const lista = [];
+  if (c.transiciones.includes('NO_ASISTIO')) lista.push({ texto: 'Marcar «No asistió»', vista: 'no-asistio' });
+  if (c.puedeReprogramar) lista.push({ texto: 'Reprogramar', vista: 'reprogramar' });
+  if (c.transiciones.includes('CANCELADA')) lista.push({ texto: 'Cancelar cita', vista: 'cancelar', peligro: true });
+  return lista;
+}
+
+/**
+ * Botones de la cita según el rol, el estado y lo que el servidor permite (RN-11).
+ * Una acción principal por fila:
+ *  - Confirmada → «Registrar llegada» (recepción).
+ *  - En espera  → «Marcar atendida» junto a «Ver triaje» (médica).
+ *  - Atendida   → «Ver triaje» (médica).
+ * No asistió, Reprogramar y Cancelar van en el menú «⋯», cada una con confirmación.
+ */
 function acciones(c) {
   const nodos = [];
-  if (estado.sesion.rol === 'RECEPCIONISTA') {
-    if (c.transiciones.includes('EN_ESPERA')) {
-      nodos.push(el('button', { type: 'button', class: BOTON.principal, onclick: (ev) => cambiarEstado(c, 'EN_ESPERA', ev.currentTarget) }, 'Registrar llegada'));
-    }
-    if (c.transiciones.includes('NO_ASISTIO') || c.transiciones.includes('CANCELADA') || c.puedeReprogramar) {
-      nodos.push(el('button', { type: 'button', class: BOTON.secundario, 'aria-label': `Más acciones para la cita ${c.codigo}`, onclick: () => abrirGestion(c) }, 'Más'));
-    }
-  } else if (estado.sesion.rol === 'MEDICO') {
-    if (c.tieneTriaje && c.estado !== 'CANCELADA') {
-      nodos.push(el('button', { type: 'button', class: BOTON.secundario, 'aria-label': `Ver triaje de la cita ${c.codigo}`, onclick: () => abrirTriaje(c) }, 'Ver triaje'));
-    } else if (c.transiciones.includes('ATENDIDA')) {
+  const rol = estado.sesion.rol;
+  if (rol === 'RECEPCIONISTA' && c.transiciones.includes('EN_ESPERA')) {
+    nodos.push(el('button', { type: 'button', class: BOTON.principal, onclick: (ev) => cambiarEstado(c, 'EN_ESPERA', ev.currentTarget) }, 'Registrar llegada'));
+  }
+  if (rol === 'MEDICO') {
+    if (c.transiciones.includes('ATENDIDA')) {
       nodos.push(el('button', { type: 'button', class: BOTON.principal, onclick: (ev) => cambiarEstado(c, 'ATENDIDA', ev.currentTarget) }, 'Marcar atendida'));
     }
-    if (!c.tieneTriaje && c.estado !== 'CANCELADA') {
+    if (c.tieneTriaje && c.estado !== 'CANCELADA') {
+      nodos.push(el('button', { type: 'button', class: BOTON.secundario, 'aria-label': `Ver triaje de ${c.paciente}, cita ${c.codigo}`, onclick: () => abrirTriaje(c) }, 'Ver triaje'));
+    } else if (c.estado !== 'CANCELADA') {
       nodos.push(el('span', { class: 'text-sm text-tinta-2' }, 'Sin triaje'));
     }
   }
+  if (accionesSecundarias(c).length > 0) {
+    nodos.push(
+      el(
+        'button',
+        {
+          type: 'button',
+          class: BOTON.menu,
+          'aria-haspopup': 'true',
+          'aria-expanded': 'false',
+          'aria-controls': 'menu-acciones',
+          'aria-label': `Más acciones para la cita ${c.codigo} de ${c.paciente}`,
+          title: 'Más acciones',
+          onclick: (ev) => alternarMenuAcciones(c, ev.currentTarget),
+        },
+        el('span', { 'aria-hidden': 'true', class: 'text-xl font-bold leading-none' }, '⋯'),
+      ),
+    );
+  }
   return nodos;
 }
+
+// ---------------------------------------------------------------------------
+// Menú «⋯» (un solo panel flotante; posición fija para que la tabla no lo recorte)
+// ---------------------------------------------------------------------------
+const menuAcciones = { boton: null };
+
+function cerrarMenuAcciones({ devolverFoco = false } = {}) {
+  const panel = $('menu-acciones');
+  if (panel.hidden) return;
+  panel.hidden = true;
+  menuAcciones.boton?.setAttribute('aria-expanded', 'false');
+  if (devolverFoco) menuAcciones.boton?.focus();
+  menuAcciones.boton = null;
+}
+
+function alternarMenuAcciones(c, boton) {
+  if (menuAcciones.boton === boton) {
+    cerrarMenuAcciones();
+    return;
+  }
+  cerrarMenuAcciones();
+  const panel = $('menu-acciones');
+  $('menu-acciones-titulo').textContent = `Cita ${c.codigo} · ${c.paciente}`;
+  $('menu-acciones-lista').replaceChildren(
+    ...accionesSecundarias(c).map((a) =>
+      el(
+        'button',
+        {
+          type: 'button',
+          class: `${BOTON.opcion} ${a.peligro ? 'text-error hover:bg-error/5' : ''}`,
+          onclick: () => {
+            cerrarMenuAcciones();
+            abrirGestion(c, a.vista);
+          },
+        },
+        a.texto,
+      ),
+    ),
+  );
+  panel.hidden = false;
+  menuAcciones.boton = boton;
+  boton.setAttribute('aria-expanded', 'true');
+  // Debajo del botón, alineado a su borde derecho; arriba si no cabe.
+  const r = boton.getBoundingClientRect();
+  const ancho = panel.offsetWidth;
+  const alto = panel.offsetHeight;
+  const izquierda = Math.max(8, Math.min(r.right - ancho, window.innerWidth - ancho - 8));
+  const arriba = r.bottom + 6 + alto > window.innerHeight ? Math.max(8, r.top - 6 - alto) : r.bottom + 6;
+  panel.style.left = `${izquierda}px`;
+  panel.style.top = `${arriba}px`;
+  panel.querySelector('button')?.focus();
+}
+
+document.addEventListener('keydown', (ev) => {
+  if (ev.key === 'Escape' && !$('menu-acciones').hidden) cerrarMenuAcciones({ devolverFoco: true });
+});
+document.addEventListener('pointerdown', (ev) => {
+  if (!$('menu-acciones').hidden && !$('menu-acciones').contains(ev.target) && !menuAcciones.boton?.contains(ev.target)) cerrarMenuAcciones();
+});
+$('menu-acciones').addEventListener('focusout', (ev) => {
+  if (ev.relatedTarget && !$('menu-acciones').contains(ev.relatedTarget) && ev.relatedTarget !== menuAcciones.boton) cerrarMenuAcciones();
+});
+window.addEventListener('resize', () => cerrarMenuAcciones());
+window.addEventListener('scroll', () => cerrarMenuAcciones(), { passive: true });
 
 function fila(c) {
   const resaltada = enCurso(c);
   return el(
     'tr',
-    { class: `border-b border-tinta/10 last:border-0 ${resaltada ? 'bg-sol/10 shadow-[inset_4px_0_0_var(--color-sol)]' : ''}` },
+    { class: `border-b border-tinta/10 last:border-0 ${resaltada ? 'bg-acento/10 shadow-[inset_4px_0_0_var(--color-acento)]' : ''}` },
     el('td', { class: 'px-4 py-4 align-top font-titulo text-lg font-bold' }, c.horaInicio, resaltada ? el('span', { class: 'sr-only' }, ' (en curso)') : null),
     el('td', { class: 'px-4 py-4 align-top' }, el('span', { class: 'block break-words' }, c.paciente), el('span', { class: 'block text-sm text-tinta-2' }, c.cedula)),
     el('td', { class: 'px-4 py-4 align-top' }, c.servicio),
@@ -207,7 +304,7 @@ function tarjeta(c) {
   const botones = acciones(c);
   return el(
     'li',
-    { class: `rounded-xl bg-white p-4 shadow-sm ${resaltada ? 'border-l-4 border-sol' : ''}` },
+    { class: `rounded-xl bg-white p-4 shadow-sm ${resaltada ? 'border-l-4 border-acento' : ''}` },
     el(
       'div',
       { class: 'flex gap-3' },
@@ -320,6 +417,7 @@ $('triaje-atendida').addEventListener('click', async (ev) => {
 // Gestión desde recepción (CU-12 A3 y CU-13)
 function vistaGestion(vista) {
   $('gestion-opciones').hidden = vista !== 'opciones';
+  $('gestion-no-asistio').hidden = vista !== 'no-asistio';
   $('gestion-cancelar').hidden = vista !== 'cancelar';
   $('gestion-reprogramar').hidden = vista !== 'reprogramar';
   $('gestion-aviso').hidden = true;
@@ -330,24 +428,29 @@ function avisoGestion(texto) {
   $('gestion-aviso').hidden = !texto;
 }
 
-function abrirGestion(c) {
-  estado.gestion = { cita: c, desde: estado.hoy, turno: null };
+/** @param {'opciones'|'no-asistio'|'cancelar'|'reprogramar'} [vista] vista inicial (desde el menú «⋯»). */
+function abrirGestion(c, vista = 'opciones') {
+  estado.gestion = { cita: c, desde: estado.hoy, turno: null, directo: vista !== 'opciones' };
   $('gestion-titulo').textContent = `Cita ${c.codigo} de ${c.paciente}`;
   $('gestion-sub').textContent = `${c.servicio}, ${fechaHora(c)}`;
   $('g-no-asistio').hidden = !c.transiciones.includes('NO_ASISTIO');
   $('g-abrir-reprogramar').hidden = !c.puedeReprogramar;
   $('g-abrir-cancelar').hidden = !c.transiciones.includes('CANCELADA');
   $('g-sin-opciones').hidden = !($('g-no-asistio').hidden && $('g-abrir-reprogramar').hidden && $('g-abrir-cancelar').hidden);
-  for (const id of ['g-no-asistio', 'g-si-cancelar', 'g-confirmar-reprogramar']) $(id).disabled = false;
-  vistaGestion('opciones');
+  for (const id of ['g-no-asistio', 'g-si-no-asistio', 'g-si-cancelar', 'g-confirmar-reprogramar']) $(id).disabled = false;
+  vistaGestion(vista);
   $('dlg-gestion').showModal();
+  if (vista === 'reprogramar') cargarTurnos();
 }
 
 for (const boton of document.querySelectorAll('[data-volver-opciones]')) {
-  boton.addEventListener('click', () => vistaGestion('opciones'));
+  // Si se llegó desde el menú «⋯», «Volver» cierra el diálogo; si no, regresa a las opciones.
+  boton.addEventListener('click', () => (estado.gestion.directo ? $('dlg-gestion').close() : vistaGestion('opciones')));
 }
 
-$('g-no-asistio').addEventListener('click', async (ev) => {
+$('g-no-asistio').addEventListener('click', () => vistaGestion('no-asistio'));
+
+$('g-si-no-asistio').addEventListener('click', async (ev) => {
   const ok = await cambiarEstado(estado.gestion.cita, 'NO_ASISTIO', ev.currentTarget, avisoGestion);
   if (ok) $('dlg-gestion').close();
 });
@@ -434,7 +537,7 @@ $('g-confirmar-reprogramar').addEventListener('click', async (ev) => {
     const nuevo = `${formatearFecha(r.cita.fecha, 'dia').toLowerCase()} a las ${r.cita.horaInicio}`;
     avisoOk(
       `Cita ${c.codigo} reprogramada para el ${nuevo}. ` +
-        (r.correoEnviado ? 'La paciente recibirá el nuevo horario por correo.' : 'No se pudo enviar el correo: avisa a la paciente por teléfono.'),
+        (r.correoEnviado ? 'La paciente recibirá el nuevo horario por correo.' : 'El correo no salió al primer intento y se está reintentando; si es urgente, avisa a la paciente por teléfono.'),
     );
     await cargar({ conservarAviso: true });
   } catch (err) {
@@ -471,6 +574,7 @@ async function iniciar() {
   } catch {
     return;
   }
+  if (estado.sesion.rol === 'MEDICO') estado.filtro = 'EN_ESPERA';
   const pedida = new URLSearchParams(location.search).get('fecha');
   if (pedida && /^\d{4}-\d{2}-\d{2}$/.test(pedida)) estado.fecha = pedida;
   await cargar();

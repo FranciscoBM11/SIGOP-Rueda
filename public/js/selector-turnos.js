@@ -1,12 +1,12 @@
 // Cuadrícula de turnos agrupados por día (CU-02), compartida por P2 Agendar
-// y P4 Mi cita. Los ocupados aparecen tachados (Figura 18) y el elegido en Sol.
+// y P4 Mi cita. Los ocupados aparecen tachados (Figura 18) y el elegido relleno en Primario.
 import { el, formatearFecha } from './api.js';
 
 const CLASES = {
   ocupado: 'min-h-11 rounded-lg border border-transparent bg-tinta/10 px-2 text-sm text-tinta-2 line-through cursor-not-allowed',
-  actual: 'min-h-11 rounded-lg border-2 border-dashed border-baya bg-bruma px-2 text-sm font-bold text-baya cursor-not-allowed',
-  elegido: 'min-h-11 rounded-lg border-2 border-sol bg-sol px-2 text-sm font-bold text-tinta',
-  libre: 'min-h-11 rounded-lg border border-baya bg-white px-2 text-sm font-bold text-baya hover:bg-baya/10',
+  actual: 'min-h-11 rounded-lg border-2 border-dashed border-primario bg-bruma px-2 text-sm font-bold text-primario cursor-not-allowed',
+  elegido: 'min-h-11 rounded-lg border-2 border-primario bg-primario px-2 text-sm font-bold text-white',
+  libre: 'min-h-11 rounded-lg border border-primario bg-white px-2 text-sm font-bold text-primario hover:bg-primario/10',
 };
 
 /**

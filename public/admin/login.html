@@ -5,16 +5,15 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="robots" content="noindex">
   <title>Iniciar sesión — Panel Clínica Rueda</title>
+  <link rel="icon" type="image/png" href="/img/logo.png">
   <link rel="stylesheet" href="/css/app.css">
   <script type="module" src="/js/admin-login.js"></script>
 </head>
 <body class="min-h-screen bg-white lg:grid lg:grid-cols-2">
   <!-- A1 Iniciar sesión (CU-10) -->
-  <section class="flex flex-col justify-between bg-tinta px-4 py-5 text-white sm:px-8 lg:min-h-screen lg:px-12 lg:py-10" aria-label="Clínica Rueda">
+  <section class="superficie-oscura flex flex-col justify-between bg-tinta px-4 py-5 text-white sm:px-8 lg:min-h-screen lg:px-12 lg:py-10" aria-label="Clínica Rueda">
     <div class="flex items-center gap-3">
-      <span class="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-baya" aria-hidden="true">
-        <span class="h-3 w-3 rounded-full bg-sol"></span>
-      </span>
+      <img src="/img/logo-claro.png" width="367" height="512" alt="Emblema" class="h-12 w-auto shrink-0">
       <span>
         <span class="block font-titulo text-xl font-bold">Clínica Rueda</span>
         <span class="block text-sm text-white/80">Panel administrativo</span>
@@ -45,11 +44,11 @@
                  aria-describedby="contrasena-error" class="mt-1 block min-h-11 w-full rounded-lg border border-tinta/30 bg-white px-3">
           <p id="contrasena-error" class="mt-1 text-sm text-error" hidden></p>
         </div>
-        <button type="submit" id="entrar" class="min-h-11 rounded-lg bg-baya px-5 font-bold text-white hover:bg-baya/90 disabled:opacity-60">Iniciar sesión</button>
+        <button type="submit" id="entrar" class="min-h-11 rounded-lg bg-primario px-5 font-bold text-white hover:bg-tinta-2 disabled:opacity-60">Iniciar sesión</button>
       </form>
 
       <p class="mt-5 text-sm text-tinta-2">Por seguridad, después de 5 intentos fallidos la cuenta se bloquea 15 minutos.</p>
-      <a href="/" class="mt-4 inline-flex min-h-11 items-center font-bold text-baya underline">← Volver al sitio de pacientes</a>
+      <a href="/" class="mt-4 inline-flex min-h-11 items-center font-bold text-primario underline">← Volver al sitio de pacientes</a>
     </div>
   </main>
 </body>

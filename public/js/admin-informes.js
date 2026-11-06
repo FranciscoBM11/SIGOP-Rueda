@@ -65,7 +65,7 @@ function pintarCitas() {
           for: id,
           class: `flex min-h-11 gap-3 rounded-lg border-2 p-4 ${
             c.admiteInforme
-              ? 'cursor-pointer border-tinta/10 bg-white has-[:checked]:border-baya has-[:checked]:bg-baya/5'
+              ? 'cursor-pointer border-tinta/10 bg-white has-[:checked]:border-primario has-[:checked]:bg-primario/5'
               : 'border-dashed border-tinta/15 bg-bruma/50 text-tinta-2'
           }`,
         },
@@ -77,7 +77,7 @@ function pintarCitas() {
           autocomplete: 'off',
           disabled: !c.admiteInforme,
           'aria-describedby': `${id}-detalle`,
-          class: 'mt-1 h-5 w-5 shrink-0 accent-baya',
+          class: 'mt-1 h-5 w-5 shrink-0 accent-primario',
         }),
         el(
           'span',
@@ -179,7 +179,7 @@ $('quitar-archivo').addEventListener('click', () => {
 });
 
 const zona = $('zona-archivo');
-const RESALTE = ['border-baya', 'bg-baya/5'];
+const RESALTE = ['border-primario', 'bg-primario/5'];
 zona.addEventListener('dragover', (e) => {
   e.preventDefault();
   zona.classList.add(...RESALTE);
